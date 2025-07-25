@@ -1,7 +1,8 @@
 import asyncio
 from cassandra.cluster import Cluster, Session, ExecutionProfile, EXEC_PROFILE_DEFAULT
-from cassandra.policies import DCAwareRoundRobinPolicy
+from cassandra.policies import DCAwareRoundRobinPolicy, WhiteListRoundRobinPolicy
 from cassandra.auth import PlainTextAuthProvider
+from cassandra import ConsistencyLevel
 import logging
 from typing import Optional, List, Dict, Any
 
@@ -89,6 +90,60 @@ class CassandraConnection:
         
         # Wait for the result
         return await future
+    
+    def get_all_hosts(self) -> List[Any]:
+        """Get all hosts in the cluster."""
+        if not self.cluster:
+            return []
+        
+        # Get all hosts from cluster metadata
+        return list(self.cluster.metadata.all_hosts())
+    
+    async def execute_on_host(self, host_address: str, statement: str, parameters=None):
+        """Execute a statement on a specific host using a dedicated execution profile."""
+        # Create execution profile for specific host
+        profile_name = f"host_{host_address.replace('.', '_').replace(':', '_')}"
+        
+        # Check if profile already exists
+        if profile_name not in self.cluster.profile_manager.profiles:
+            # Create new profile for this host
+            profile = ExecutionProfile(
+                load_balancing_policy=WhiteListRoundRobinPolicy([host_address]),
+                consistency_level=ConsistencyLevel.ONE
+            )
+            self.cluster.add_execution_profile(profile_name, profile)
+            logger.debug(f"Created execution profile for host {host_address}")
+        
+        # Execute the statement using the host-specific profile
+        logger.debug(f"Executing query on host {host_address}: {statement}")
+        try:
+            # Create a future that we can await
+            loop = asyncio.get_event_loop()
+            future = loop.create_future()
+            
+            # Execute with specific profile
+            response_future = self.session.execute_async(
+                statement, 
+                parameters, 
+                execution_profile=profile_name
+            )
+            
+            # Define callbacks for the ResponseFuture
+            def on_success(result):
+                loop.call_soon_threadsafe(future.set_result, result)
+            
+            def on_error(exc):
+                loop.call_soon_threadsafe(future.set_exception, exc)
+            
+            # Add callbacks to the ResponseFuture
+            response_future.add_callback(on_success)
+            response_future.add_errback(on_error)
+            
+            # Wait for the result
+            return await future
+        except Exception as e:
+            logger.error(f"Error executing query on host {host_address}: {e}")
+            raise
         
     def disconnect(self) -> None:
         """Close connection gracefully."""

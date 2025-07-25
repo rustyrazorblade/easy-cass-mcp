@@ -1,5 +1,6 @@
-from typing import List, Optional, Any
+from typing import List, Optional, Any, Dict
 import logging
+import asyncio
 from cassandra_connection import CassandraConnection
 
 logger = logging.getLogger(__name__)
@@ -79,3 +80,116 @@ class CassandraService:
         """Execute arbitrary CQL for testing purposes asynchronously."""
         logger.debug(f"Executing query: {query}")
         return await self.connection.execute_async(query, parameters)
+    
+    async def execute_on_node(self, node_address: str, query: str, parameters: Optional[tuple] = None) -> Any:
+        """Execute a query on a specific node."""
+        logger.info(f"Executing query on node {node_address}")
+        try:
+            result = await self.connection.execute_on_host(node_address, query, parameters)
+            return result
+        except Exception as e:
+            logger.error(f"Error executing query on node {node_address}: {e}")
+            raise
+    
+    async def execute_on_all_nodes(self, query: str, parameters: Optional[tuple] = None) -> Dict[str, Any]:
+        """Execute a query on all nodes in the cluster and return results per node."""
+        logger.info("Executing query on all nodes in the cluster")
+        
+        # Get all hosts
+        hosts = self.connection.get_all_hosts()
+        if not hosts:
+            logger.warning("No hosts found in cluster")
+            return {}
+        
+        results = {}
+        
+        # Execute query on each host concurrently
+        async def query_host(host):
+            host_address = host.address
+            try:
+                logger.debug(f"Querying host: {host_address}")
+                result = await self.connection.execute_on_host(host_address, query, parameters)
+                # Convert result to list to avoid iterator issues
+                return host_address, list(result) if result else []
+            except Exception as e:
+                logger.error(f"Failed to query host {host_address}: {e}")
+                return host_address, {"error": str(e)}
+        
+        # Run queries concurrently
+        tasks = [query_host(host) for host in hosts]
+        query_results = await asyncio.gather(*tasks, return_exceptions=False)
+        
+        # Build results dictionary
+        for host_address, result in query_results:
+            results[host_address] = result
+        
+        logger.info(f"Completed query on {len(results)} nodes")
+        return results
+    
+    async def query_system_table_on_nodes(
+        self,
+        keyspace: str,
+        table: str,
+        node_addresses: Optional[List[str]] = None
+    ) -> Dict[str, List[Any]]:
+        """Query a system or system_views table on specified nodes.
+        
+        Args:
+            keyspace: Must be either 'system' or 'system_views'
+            table: Table name to query
+            node_addresses: Optional list of node addresses to query. If None, queries all nodes.
+            
+        Returns:
+            Dict mapping node addresses to list of result rows
+            
+        Raises:
+            ValueError: If keyspace is not 'system' or 'system_views'
+        """
+        # Validate keyspace
+        if keyspace not in ['system', 'system_views']:
+            raise ValueError(f"Invalid keyspace '{keyspace}'. Must be 'system' or 'system_views'")
+        
+        logger.info(f"Querying {keyspace}.{table} on {'specified' if node_addresses else 'all'} nodes")
+        
+        # Build query
+        query = f"SELECT * FROM {keyspace}.{table}"
+        
+        # Get hosts to query
+        all_hosts = self.connection.get_all_hosts()
+        if not all_hosts:
+            logger.warning("No hosts found in cluster")
+            return {}
+        
+        # Filter hosts if specific nodes requested
+        if node_addresses:
+            hosts_to_query = [h for h in all_hosts if h.address in node_addresses]
+            if not hosts_to_query:
+                logger.warning(f"None of the specified nodes {node_addresses} found in cluster")
+                return {}
+        else:
+            hosts_to_query = all_hosts
+        
+        results = {}
+        
+        # Execute query on each host concurrently
+        async def query_host(host):
+            host_address = host.address
+            try:
+                logger.debug(f"Querying {keyspace}.{table} on host: {host_address}")
+                result = await self.connection.execute_on_host(host_address, query)
+                # Convert result to list to avoid iterator issues
+                return host_address, list(result) if result else []
+            except Exception as e:
+                logger.error(f"Failed to query {keyspace}.{table} on host {host_address}: {e}")
+                return host_address, {"error": str(e)}
+        
+        # Run queries concurrently
+        tasks = [query_host(host) for host in hosts_to_query]
+        query_results = await asyncio.gather(*tasks, return_exceptions=False)
+        
+        # Build results dictionary
+        for host_address, result in query_results:
+            results[host_address] = result
+        
+        logger.info(f"Completed querying {keyspace}.{table} on {len(results)} nodes")
+        return results

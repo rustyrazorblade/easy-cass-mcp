@@ -104,6 +104,30 @@ if __name__ == "__main__":
 
 All interactions should be handled through CQL and virtual tables.
 
+### Node-Specific Queries
+
+The MCP server supports executing queries on specific nodes or all nodes in the cluster. This is essential for querying virtual tables and node-local system tables.
+
+#### Available MCP Tools for Node-Specific Queries:
+1. **query_all_nodes**: Executes a query on all nodes in the cluster and returns results per node
+2. **query_node**: Executes a query on a specific node
+
+#### Example Usage:
+```python
+# Query virtual tables on all nodes
+await query_all_nodes("SELECT * FROM system_views.disk_usage")
+
+# Query system.local on a specific node
+await query_node("192.168.1.1", "SELECT * FROM system.local")
+```
+
+#### Implementation Details:
+- Uses `WhiteListRoundRobinPolicy` to target specific nodes
+- Creates execution profiles dynamically for each node
+- Uses `ConsistencyLevel.ONE` for node-local queries
+- Executes queries concurrently on all nodes for better performance
+- Handles failures gracefully (returns error message for failed nodes)
+
 ## Testing Strategy
 
 When adding tests:
