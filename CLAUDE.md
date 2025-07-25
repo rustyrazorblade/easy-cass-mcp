@@ -12,9 +12,10 @@ Use the following reference: https://gofastmcp.com/getting-started/welcome
 
 ### Package Management
 This project uses `uv` for Python package management:
-- `uv pip install -e .` - Install the project in development mode
-- `uv pip install -e ".[dev]"` - Install with development dependencies
-- `uv sync` - Sync dependencies from pyproject.toml
+- `uv sync` - Sync all dependencies from pyproject.toml
+- `uv add <package>` - Add a new dependency
+- `uv add --dev <package>` - Add a new development dependency
+- `uv lock` - Update the lock file
 
 ### Running the Server
 - `python main.py` - Run the MCP server
