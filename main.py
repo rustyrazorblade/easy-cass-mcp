@@ -3,6 +3,7 @@ from cassandra_connection import CassandraConnection
 from cassandra_service import CassandraService
 from mcp_server import create_mcp_server
 import logging
+import asyncio
 
 # Configure logging
 logging.basicConfig(
@@ -12,7 +13,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def main():
+async def main():
     """Main entry point for the Cassandra MCP server."""
     logger.info("Starting Cassandra MCP Server")
     
@@ -31,7 +32,7 @@ def main():
     
     try:
         # Connect to Cassandra
-        connection.connect()
+        await connection.connect()
         
         # Create service
         service = CassandraService(connection)
@@ -39,7 +40,8 @@ def main():
         # Create and run MCP server
         mcp = create_mcp_server(service)
         logger.info("Starting MCP server with HTTP transport")
-        mcp.run(transport="http")
+        # Use run_async() in async contexts
+        await mcp.run_async(transport="http")
         
     finally:
         # Ensure cleanup on exit
@@ -47,4 +49,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

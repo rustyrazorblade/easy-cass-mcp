@@ -75,6 +75,31 @@ async def cassandra_health():
     pass
 ```
 
+### FastMCP Async Usage
+FastMCP provides both synchronous and asynchronous APIs:
+- Use `mcp.run()` in synchronous contexts (regular functions)
+- Use `await mcp.run_async()` in async contexts (async functions)
+
+**Important**: The `run()` method cannot be called from inside an async function because it creates its own async event loop. Always use `run_async()` inside async functions.
+
+Example async pattern:
+```python
+import asyncio
+from fastmcp import FastMCP
+
+mcp = FastMCP(name="MyServer")
+
+async def main():
+    # Setup any async resources
+    await setup_connections()
+    
+    # Use run_async() in async contexts
+    await mcp.run_async(transport="http")
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
 ## Cassandra Integration 
 
 All interactions should be handled through CQL and virtual tables.
@@ -87,6 +112,8 @@ When adding tests:
 3. Create integration tests with a test Cassandra instance if available
 4. Test error scenarios (connection failures, timeouts, etc.)
 
+- Do not write tests against Mocked Cassandra connections unless testing something higher in the stack, such as how the MCP handles errors that return. 
+
 ## Code Style Guidelines
 
 1. Follow PEP 8 (enforced by Black and flake8)
@@ -97,3 +124,6 @@ When adding tests:
 
 ## Best Practices
 - Always add comments for new classes, functions, and methods.
+
+## Testing Principles
+- Always write new code so it can be tested in isolation.  Ensure new MCP calls have tests around their functionality as well as all the layers below.

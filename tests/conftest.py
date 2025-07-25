@@ -1,4 +1,6 @@
 import pytest
+import pytest_asyncio
+import asyncio
 import os
 from cassandra_connection import CassandraConnection
 from cassandra_service import CassandraService
@@ -21,8 +23,16 @@ def test_config():
 
 
 @pytest.fixture(scope="session")
-def cassandra_connection(test_config):
-    """Create connection for entire test session."""
+def event_loop():
+    """Create an instance of the default event loop for the test session."""
+    loop = asyncio.get_event_loop_policy().new_event_loop()
+    yield loop
+    loop.close()
+
+
+@pytest_asyncio.fixture(scope="session")
+async def cassandra_connection(test_config):
+    """Create async connection for entire test session."""
     connection = CassandraConnection(
         contact_points=test_config['contact_points'],
         port=test_config['port'],
@@ -30,10 +40,10 @@ def cassandra_connection(test_config):
         username=test_config['username'],
         password=test_config['password']
     )
-    connection.connect()
+    await connection.connect()
     
     # Create test keyspace
-    connection.session.execute(f"""
+    await connection.execute_async(f"""
         CREATE KEYSPACE IF NOT EXISTS {test_config['test_keyspace']}
         WITH replication = {{'class': 'SimpleStrategy', 'replication_factor': 1}}
     """)
@@ -42,53 +52,53 @@ def cassandra_connection(test_config):
     
     # Cleanup (optional - you might want to keep test data)
     if os.getenv('CLEANUP_TEST_DATA', 'false').lower() == 'true':
-        connection.session.execute(f"DROP KEYSPACE IF EXISTS {test_config['test_keyspace']}")
+        await connection.execute_async(f"DROP KEYSPACE IF EXISTS {test_config['test_keyspace']}")
     
     connection.disconnect()
 
 
-@pytest.fixture
-def cassandra_service(cassandra_connection):
+@pytest_asyncio.fixture
+async def cassandra_service(cassandra_connection):
     """Create service instance for each test."""
     return CassandraService(cassandra_connection)
 
 
-@pytest.fixture
-def test_keyspace(test_config, cassandra_connection):
+@pytest_asyncio.fixture
+async def test_keyspace(test_config, cassandra_connection):
     """Provide test keyspace name and ensure it's clean."""
     keyspace = test_config['test_keyspace']
     # Truncate all tables in keyspace before each test
-    tables = cassandra_connection.session.execute(
+    tables_result = await cassandra_connection.execute_async(
         "SELECT table_name FROM system_schema.tables WHERE keyspace_name = %s",
         (keyspace,)
     )
-    for table in tables:
-        cassandra_connection.session.execute(f"TRUNCATE {keyspace}.{table.table_name}")
+    for table in tables_result:
+        await cassandra_connection.execute_async(f"TRUNCATE {keyspace}.{table.table_name}")
     
     return keyspace
 
 
-@pytest.fixture
-def empty_test_keyspace(test_config, cassandra_connection):
+@pytest_asyncio.fixture
+async def empty_test_keyspace(test_config, cassandra_connection):
     """Provide a separate empty keyspace for tests that need no tables."""
     keyspace = f"{test_config['test_keyspace']}_empty"
     
     # Create the keyspace if it doesn't exist
-    cassandra_connection.session.execute(f"""
+    await cassandra_connection.execute_async(f"""
         CREATE KEYSPACE IF NOT EXISTS {keyspace}
         WITH replication = {{'class': 'SimpleStrategy', 'replication_factor': 1}}
     """)
     
     # Ensure it's truly empty by dropping any existing tables
-    tables = cassandra_connection.session.execute(
+    tables_result = await cassandra_connection.execute_async(
         "SELECT table_name FROM system_schema.tables WHERE keyspace_name = %s",
         (keyspace,)
     )
-    for table in tables:
-        cassandra_connection.session.execute(f"DROP TABLE IF EXISTS {keyspace}.{table.table_name}")
+    for table in tables_result:
+        await cassandra_connection.execute_async(f"DROP TABLE IF EXISTS {keyspace}.{table.table_name}")
     
     yield keyspace
     
     # Cleanup after test if configured
     if os.getenv('CLEANUP_TEST_DATA', 'false').lower() == 'true':
-        cassandra_connection.session.execute(f"DROP KEYSPACE IF EXISTS {keyspace}")
+        await cassandra_connection.execute_async(f"DROP KEYSPACE IF EXISTS {keyspace}")
