@@ -56,10 +56,12 @@ def create_mcp_server(service: CassandraService) -> FastMCP:
     - local: Current node information (cluster name, DC, rack, tokens)
     - peers: Information about other nodes in the cluster
     - peers_v2: Extended peer information (Cassandra 4.0+)
-    - compaction_history: History of completed compactions
-    - size_estimates: Table size estimates for each range
     - available_ranges: Token ranges available on this node
     - transferred_ranges: Token ranges being transferred
+    - size_estimates: Table size estimates for each range
+    
+    COMMON SYSTEM TABLES (performance and data statistics):
+    - compaction_history: History of completed compactions
     
     All tables return node-specific data. Use node_addresses parameter to query specific nodes.""")
     async def query_system_table(
