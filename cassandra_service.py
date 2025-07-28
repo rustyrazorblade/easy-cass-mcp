@@ -27,49 +27,27 @@ class CassandraService:
         """Get CREATE TABLE statement for a specific table asynchronously."""
         logger.info(f"Retrieving CREATE TABLE definition for {keyspace}.{table}")
         
-        # Query system_schema to build CREATE TABLE statement
         try:
-            # Get table metadata
-            columns_query = """
-                SELECT column_name, type, kind
-                FROM system_schema.columns
-                WHERE keyspace_name = %s AND table_name = %s
-            """
-            columns_result = await self.connection.execute_async(columns_query, (keyspace, table))
+            # Get table metadata from cluster metadata
+            if not self.connection.cluster:
+                raise Exception("Cluster connection not established")
             
-            if not columns_result:
+            # Check if keyspace exists in metadata
+            if keyspace not in self.connection.cluster.metadata.keyspaces:
+                raise Exception(f"Keyspace {keyspace} not found")
+            
+            keyspace_metadata = self.connection.cluster.metadata.keyspaces[keyspace]
+            
+            # Check if table exists in keyspace
+            if table not in keyspace_metadata.tables:
                 raise Exception(f"Table {keyspace}.{table} not found")
             
-            # Build CREATE TABLE statement
-            columns = list(columns_result)
-            if not columns:
-                raise Exception(f"Table {keyspace}.{table} not found")
-                
-            # Separate partition key, clustering key, and regular columns
-            partition_keys = [col for col in columns if col.kind == 'partition_key']
-            clustering_keys = [col for col in columns if col.kind == 'clustering']
-            regular_columns = [col for col in columns if col.kind == 'regular']
+            table_metadata = keyspace_metadata.tables[table]
             
-            # Build column definitions
-            column_defs = []
-            for col in partition_keys + clustering_keys + regular_columns:
-                column_defs.append(f"{col.column_name} {col.type}")
+            # Use export_as_string() to get CREATE TABLE statement with indexes
+            create_statement = table_metadata.export_as_string()
             
-            # Build PRIMARY KEY clause
-            pk_parts = [col.column_name for col in partition_keys]
-            ck_parts = [col.column_name for col in clustering_keys]
-            
-            if ck_parts:
-                primary_key = f"PRIMARY KEY (({', '.join(pk_parts)}), {', '.join(ck_parts)})"
-            else:
-                primary_key = f"PRIMARY KEY ({', '.join(pk_parts)})"
-            
-            # Construct CREATE TABLE statement
-            create_statement = f"CREATE TABLE {keyspace}.{table} (\n"
-            create_statement += ",\n".join(f"    {col}" for col in column_defs)
-            create_statement += f",\n    {primary_key}\n)"
-            
-            logger.info(f"Retrieved CREATE TABLE statement for {keyspace}.{table}")
+            logger.info(f"Retrieved CREATE TABLE statement for {keyspace}.{table} using TableMetadata.export_as_string()")
             return create_statement
             
         except Exception as e:
