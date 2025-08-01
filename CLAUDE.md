@@ -178,6 +178,10 @@ When adding tests:
 ## Testing Principles
 - Always write new code so it can be tested in isolation.  Ensure new MCP calls have tests around their functionality as well as all the layers below.
 
+## Workflow Practices
+
+- Always run pytest when finishing a coding task, summarize the errors, and show the plan for how to fix.
+
 ## MCP Development
 
 ### Adding New MCP Capabilities

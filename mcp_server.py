@@ -5,6 +5,7 @@ from fastmcp import FastMCP
 
 from cassandra_service import CassandraService
 from cassandra_utility import CassandraUtility
+from compaction_analyzer import CompactionAnalyzer
 
 logger = logging.getLogger(__name__)
 
@@ -47,10 +48,10 @@ def create_mcp_server(service: CassandraService) -> FastMCP:
 
     COMMON SYSTEM_VIEWS TABLES (performance metrics & statistics):
     - disk_usage: Disk space usage per keyspace/table
-    - local_read_latency: Read latency statistics per table
-    - local_write_latency: Write latency statistics per table
-    - local_scan_latency: Scan latency statistics per table
-    - thread_pools: Thread pool statistics and queue depths
+    - local_read_latency: Read latency statistics per table.  The count field exposes the number of reads.
+    - local_write_latency: Write latency statistics per table.  The count field exposes the number of writes.
+    - local_scan_latency: Scan latency statistics per table.  The count field exposes the number of scans.
+    - thread_pools: Thread pool statistics and queue depths.
     - sstable_tasks: Active SSTable operations (compaction, cleanup, etc)
     - streaming: Active streaming operations between nodes
     - clients: Currently connected client sessions
@@ -179,43 +180,15 @@ def create_mcp_server(service: CassandraService) -> FastMCP:
     async def analyze_table_optimizations(keyspace: str, table: str) -> str:
         """Analyze a table and suggest optimizations."""
         try:
-            optimizations = []
-
             # Get table object using utility
             table_obj = utility.get_table(keyspace, table)
 
             # Get Cassandra version
             version = await utility.get_version()
-            major_version = version[0]
 
-            # Get compaction strategy
-            compaction_info = await table_obj.get_compaction_strategy()
-            compaction_class = compaction_info["class"]
-
-            # Check if it's STCS and Cassandra 5+
-            if (
-                "SizeTieredCompactionStrategy" in compaction_class
-                and major_version >= 5
-            ):
-                optimizations.append(
-                    {
-                        "type": "compaction_strategy",
-                        "current": "SizeTieredCompactionStrategy (STCS)",
-                        "recommendation": (
-                            "UnifiedCompactionStrategy (UCS) with "
-                            "scaling_parameters: T4"
-                        ),
-                        "reason": (
-                            "UCS with T4 scaling parameters provides better "
-                            "performance and more predictable latencies "
-                            "compared to STCS in Cassandra 5.0+"
-                        ),
-                        "reference": (
-                            "https://rustyrazorblade.com/post/2025/"
-                            "07-compaction-strategies-and-performance/"
-                        ),
-                    }
-                )
+            # Create compaction analyzer and run analysis
+            compaction_analyzer = CompactionAnalyzer(table_obj, version)
+            optimizations = await compaction_analyzer.analyze()
 
             # Format output
             if not optimizations:
