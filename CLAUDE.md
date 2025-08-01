@@ -104,6 +104,32 @@ if __name__ == "__main__":
 
 All interactions should be handled through CQL and virtual tables.
 
+### Using Abstractions
+
+When implementing MCP tools, always favor using abstractions over raw Cassandra calls:
+
+1. **CassandraUtility**: Use this for cluster-wide operations
+   - `get_version()`: Always use this instead of manually querying system.local for version
+   - `get_table(keyspace, table)`: Use this to create CassandraTable objects
+   - The utility first checks if version is available in the driver metadata before falling back to system tables
+
+2. **CassandraTable**: Use this for table-specific operations
+   - `get_compaction_strategy()`: Returns compaction strategy class and options
+   - `get_create_statement()`: Returns the CREATE TABLE statement
+   - Provides a clean abstraction over raw metadata access
+
+Example usage in MCP tools:
+```python
+# Good - using abstractions
+utility = CassandraUtility(session)
+version = await utility.get_version()
+table = utility.get_table(keyspace, table_name)
+compaction = await table.get_compaction_strategy()
+
+# Avoid - raw queries for metadata
+result = await session.execute("SELECT release_version FROM system.local")
+```
+
 ### Node-Specific Queries
 
 The MCP server supports executing queries on specific nodes or all nodes in the cluster. This is essential for querying virtual tables and node-local system tables.
@@ -151,3 +177,37 @@ When adding tests:
 
 ## Testing Principles
 - Always write new code so it can be tested in isolation.  Ensure new MCP calls have tests around their functionality as well as all the layers below.
+
+## MCP Development
+
+### Adding New MCP Capabilities
+When extending the MCP server with new functionality:
+
+1. **Adding a new tool**: Add a new method in `mcp_server.py` annotated with `@mcp.tool`
+   ```python
+   @mcp.tool()
+   async def new_tool_name(param1: str, param2: int):
+       """Tool description that will be shown to clients"""
+       # Implementation here
+       pass
+   ```
+
+2. **Adding a new prompt**: Add a new method in `mcp_server.py` annotated with `@mcp.prompt`
+   ```python
+   @mcp.prompt()
+   async def new_prompt_name():
+       """Prompt description"""
+       # Return prompt content
+       pass
+   ```
+
+3. **Adding a new resource**: Add a new method in `mcp_server.py` annotated with `@mcp.resource`
+   ```python
+   @mcp.resource()
+   async def new_resource_name():
+       """Resource description"""
+       # Return resource data
+       pass
+   ```
+
+All new MCP methods should follow the conventions established by existing tools in the file.

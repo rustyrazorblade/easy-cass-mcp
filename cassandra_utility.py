@@ -1,0 +1,92 @@
+import logging
+from typing import Tuple
+
+from cassandra.cluster import Session
+
+from cassandra_table import CassandraTable
+
+logger = logging.getLogger(__name__)
+
+
+class CassandraUtility:
+    """Utility class for common Cassandra operations."""
+
+    def __init__(self, session: Session):
+        self.session = session
+        self._version_cache: Tuple[int, int, int] = None
+
+    async def get_version(self) -> Tuple[int, int, int]:
+        """Get Cassandra version as a tuple (major, minor, patch).
+
+        First attempts to get version from driver metadata, falls back to system.local query.
+        Raises RuntimeError if version cannot be determined.
+        """
+        if self._version_cache:
+            return self._version_cache
+
+        version_str = None
+
+        try:
+            # First try to get version from driver metadata
+            if (
+                hasattr(self.session.cluster, "metadata")
+                and self.session.cluster.metadata
+            ):
+                if hasattr(self.session.cluster.metadata, "cluster_name"):
+                    # Try to get from control connection
+                    control_conn = getattr(
+                        self.session.cluster, "control_connection", None
+                    )
+                    if control_conn and hasattr(
+                        control_conn, "get_control_connection_host"
+                    ):
+                        host = control_conn.get_control_connection_host()
+                        if host and hasattr(host, "release_version"):
+                            version_str = host.release_version
+
+            # Fallback to querying system.local if not found
+            if not version_str:
+                result = self.session.execute(
+                    "SELECT release_version FROM system.local"
+                )
+                if result:
+                    row = result.one()
+                    if row and row.release_version:
+                        version_str = row.release_version
+
+        except Exception as e:
+            logger.error(f"Failed to get Cassandra version: {e}")
+            raise RuntimeError(f"Unable to determine Cassandra version: {e}")
+
+        if not version_str:
+            raise RuntimeError(
+                "Unable to determine Cassandra version: no version information available"
+            )
+
+        self._version_cache = self._parse_version(version_str)
+        return self._version_cache
+
+    def _parse_version(self, version_str: str) -> Tuple[int, int, int]:
+        """Parse version string into tuple (major, minor, patch)."""
+        try:
+            # Handle versions like "4.0.11" or "5.0.0-SNAPSHOT"
+            version_parts = version_str.split("-")[0].split(".")
+            major = int(version_parts[0])
+            minor = int(version_parts[1]) if len(version_parts) > 1 else 0
+            patch = int(version_parts[2]) if len(version_parts) > 2 else 0
+            return (major, minor, patch)
+        except (ValueError, IndexError) as e:
+            logger.error(f"Failed to parse version '{version_str}': {e}")
+            raise ValueError(f"Invalid version format '{version_str}': {e}")
+
+    def get_table(self, keyspace: str, table: str) -> CassandraTable:
+        """Create a CassandraTable object for the specified keyspace and table.
+
+        Args:
+            keyspace: The keyspace name
+            table: The table name
+
+        Returns:
+            CassandraTable object for interacting with the table
+        """
+        return CassandraTable(self.session, keyspace, table)
