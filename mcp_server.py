@@ -37,6 +37,53 @@ async def create_mcp_server(service: CassandraService) -> FastMCP:
         
         All tables return node-specific data. Use node_addresses parameter to query specific nodes."""
 
+    @mcp.tool(description="Get all keyspaces in the Cassandra cluster with optional system keyspace filtering.")
+    async def get_keyspaces(include_system: bool = False) -> str:
+        """Get all keyspaces in the cluster.
+        
+        Args:
+            include_system: If True, include system keyspaces (system, system_*, etc). Default False.
+        """
+        try:
+            keyspaces = await service.get_keyspaces(include_system)
+            
+            if not keyspaces:
+                if include_system:
+                    return "No keyspaces found in the cluster"
+                else:
+                    return "No user keyspaces found. Use include_system=true to see system keyspaces."
+            
+            # Format output
+            output = ["Keyspaces:"]
+            for ks in keyspaces:
+                output.append(f"  - {ks['name']}")
+                
+                # Add replication info if available
+                if ks.get('replication'):
+                    replication = ks['replication']
+                    if isinstance(replication, dict):
+                        strategy = replication.get('class', '').split('.')[-1]
+                        if strategy:
+                            output.append(f"    Replication: {strategy}")
+                            # Show replication factor for SimpleStrategy or NetworkTopologyStrategy
+                            if 'replication_factor' in replication:
+                                output.append(f"    Replication Factor: {replication['replication_factor']}")
+                            elif strategy == 'NetworkTopologyStrategy':
+                                # Show datacenter replication factors
+                                dcs = {k: v for k, v in replication.items() if k != 'class'}
+                                if dcs:
+                                    output.append(f"    Datacenters: {dcs}")
+                
+                # Add durable_writes info if not default
+                if not ks.get('durable_writes', True):
+                    output.append(f"    Durable Writes: False")
+            
+            return "\n".join(output)
+            
+        except Exception as e:
+            logger.error(f"Error getting keyspaces: {e}")
+            return f"Error retrieving keyspaces: {str(e)}"
+    
     @mcp.tool(description="Retrieve all the tables in the requested keyspace.")
     async def get_tables(keyspace: str) -> str:
         """Get all tables in a keyspace."""

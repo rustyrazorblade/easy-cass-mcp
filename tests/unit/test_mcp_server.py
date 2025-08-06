@@ -53,6 +53,49 @@ class TestMCPServer:
         assert mcp.name == "Cassandra MCP Server"
 
     @pytest.mark.asyncio
+    async def test_get_keyspaces_tool(self):
+        """Test get_keyspaces tool functionality."""
+        # Use helper to create mock service
+        mock_service = self._create_mock_service()
+        mock_service.get_keyspaces = AsyncMock(
+            return_value=[
+                {
+                    'name': 'my_app',
+                    'replication': {'class': 'org.apache.cassandra.locator.SimpleStrategy', 'replication_factor': '3'},
+                    'durable_writes': True
+                },
+                {
+                    'name': 'another_app',
+                    'replication': {'class': 'org.apache.cassandra.locator.NetworkTopologyStrategy', 'dc1': '3', 'dc2': '2'},
+                    'durable_writes': False
+                }
+            ]
+        )
+        
+        # Create the MCP server
+        mcp = await create_mcp_server(mock_service)
+        
+        # Test the service method
+        keyspaces = await mock_service.get_keyspaces(include_system=False)
+        
+        assert len(keyspaces) == 2
+        assert keyspaces[0]['name'] == 'my_app'
+        assert keyspaces[1]['durable_writes'] == False
+        mock_service.get_keyspaces.assert_called_once_with(include_system=False)
+    
+    @pytest.mark.asyncio
+    async def test_get_keyspaces_tool_empty(self):
+        """Test get_keyspaces with no user keyspaces."""
+        mock_service = self._create_mock_service()
+        mock_service.get_keyspaces = AsyncMock(return_value=[])
+        
+        mcp = await create_mcp_server(mock_service)
+        
+        # Test the service method
+        keyspaces = await mock_service.get_keyspaces(include_system=False)
+        assert keyspaces == []
+    
+    @pytest.mark.asyncio
     async def test_get_tables_tool(self):
         """Test get_tables tool functionality through direct invocation."""
         # Use helper to create mock service

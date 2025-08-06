@@ -17,6 +17,39 @@ class CassandraService:
         self._system_tables_cache: Optional[Dict[str, List[str]]] = None
         self._cassandra_version: Optional[tuple] = None
 
+    async def get_keyspaces(self, include_system: bool = False) -> List[Dict[str, Any]]:
+        """Get all keyspaces in the cluster with their metadata.
+        
+        Args:
+            include_system: If True, include system keyspaces. Default False.
+            
+        Returns:
+            List of dictionaries containing keyspace name and replication info
+        """
+        logger.info(f"Retrieving keyspaces (include_system={include_system})")
+        
+        result = await self.connection.execute_async(
+            self.connection.prepared_statements["select_keyspaces"]
+        )
+        
+        keyspaces = []
+        for row in result:
+            keyspace_name = row.keyspace_name
+            
+            # Filter system keyspaces if requested
+            if not include_system and keyspace_name.startswith('system'):
+                continue
+                
+            keyspace_info = {
+                'name': keyspace_name,
+                'replication': row.replication if hasattr(row, 'replication') else {},
+                'durable_writes': row.durable_writes if hasattr(row, 'durable_writes') else True
+            }
+            keyspaces.append(keyspace_info)
+        
+        logger.info(f"Found {len(keyspaces)} keyspaces")
+        return keyspaces
+    
     async def get_tables(self, keyspace: str) -> List[str]:
         """Get all tables in a keyspace asynchronously."""
         logger.info(f"Retrieving tables for keyspace: {keyspace}")

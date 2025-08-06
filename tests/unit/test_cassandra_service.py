@@ -23,6 +23,85 @@ class TestCassandraServiceUnit:
     """
 
     @pytest.mark.asyncio
+    async def test_get_keyspaces_with_system(self):
+        """Test get_keyspaces including system keyspaces."""
+        # Create mock connection
+        mock_connection = Mock(spec=CassandraConnection)
+        mock_connection.prepared_statements = {"select_keyspaces": Mock()}
+        
+        # Mock keyspaces result
+        mock_result = [
+            Mock(keyspace_name="system", replication={'class': 'LocalStrategy'}, durable_writes=True),
+            Mock(keyspace_name="system_schema", replication={'class': 'LocalStrategy'}, durable_writes=True),
+            Mock(keyspace_name="my_app", replication={'class': 'SimpleStrategy', 'replication_factor': '3'}, durable_writes=True),
+        ]
+        mock_connection.execute_async = AsyncMock(return_value=mock_result)
+        
+        # Create service and test
+        service = CassandraService(mock_connection)
+        keyspaces = await service.get_keyspaces(include_system=True)
+        
+        # Verify results
+        assert len(keyspaces) == 3
+        assert any(ks['name'] == 'system' for ks in keyspaces)
+        assert any(ks['name'] == 'my_app' for ks in keyspaces)
+        
+        # Check my_app keyspace has correct replication
+        my_app = next(ks for ks in keyspaces if ks['name'] == 'my_app')
+        assert my_app['replication']['replication_factor'] == '3'
+    
+    @pytest.mark.asyncio
+    async def test_get_keyspaces_without_system(self):
+        """Test get_keyspaces excluding system keyspaces."""
+        # Create mock connection
+        mock_connection = Mock(spec=CassandraConnection)
+        mock_connection.prepared_statements = {"select_keyspaces": Mock()}
+        
+        # Mock keyspaces result
+        mock_result = [
+            Mock(keyspace_name="system", replication={'class': 'LocalStrategy'}, durable_writes=True),
+            Mock(keyspace_name="system_schema", replication={'class': 'LocalStrategy'}, durable_writes=True),
+            Mock(keyspace_name="my_app", replication={'class': 'SimpleStrategy', 'replication_factor': '3'}, durable_writes=True),
+            Mock(keyspace_name="another_app", replication={'class': 'NetworkTopologyStrategy', 'dc1': '3', 'dc2': '2'}, durable_writes=False),
+        ]
+        mock_connection.execute_async = AsyncMock(return_value=mock_result)
+        
+        # Create service and test
+        service = CassandraService(mock_connection)
+        keyspaces = await service.get_keyspaces(include_system=False)
+        
+        # Verify only user keyspaces returned
+        assert len(keyspaces) == 2
+        assert all(not ks['name'].startswith('system') for ks in keyspaces)
+        assert any(ks['name'] == 'my_app' for ks in keyspaces)
+        assert any(ks['name'] == 'another_app' for ks in keyspaces)
+        
+        # Check another_app has durable_writes=False
+        another_app = next(ks for ks in keyspaces if ks['name'] == 'another_app')
+        assert another_app['durable_writes'] == False
+    
+    @pytest.mark.asyncio
+    async def test_get_keyspaces_empty(self):
+        """Test get_keyspaces with no user keyspaces."""
+        # Create mock connection
+        mock_connection = Mock(spec=CassandraConnection)
+        mock_connection.prepared_statements = {"select_keyspaces": Mock()}
+        
+        # Mock only system keyspaces
+        mock_result = [
+            Mock(keyspace_name="system", replication={'class': 'LocalStrategy'}, durable_writes=True),
+            Mock(keyspace_name="system_schema", replication={'class': 'LocalStrategy'}, durable_writes=True),
+        ]
+        mock_connection.execute_async = AsyncMock(return_value=mock_result)
+        
+        # Create service and test
+        service = CassandraService(mock_connection)
+        keyspaces = await service.get_keyspaces(include_system=False)
+        
+        # Verify no user keyspaces returned
+        assert len(keyspaces) == 0
+    
+    @pytest.mark.asyncio
     async def test_get_tables_with_mock(self):
         """Test get_tables with mocked connection."""
         # Create mock connection
