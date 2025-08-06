@@ -6,6 +6,7 @@ from fastmcp import FastMCP
 from cassandra_service import CassandraService
 from cassandra_utility import CassandraUtility
 from compaction_analyzer import CompactionAnalyzer
+from configuration_analyzer import ConfigurationAnalyzer
 from constants import MCP_SERVER_NAME, VALID_SYSTEM_KEYSPACES
 
 logger = logging.getLogger(__name__)
@@ -215,5 +216,60 @@ async def create_mcp_server(service: CassandraService) -> FastMCP:
         except Exception as e:
             logger.error(f"Error analyzing table optimizations: {e}")
             return f"Error analyzing table optimizations: {str(e)}"
+
+    @mcp.tool(
+        description="Get configuration recommendations based on Cassandra version and current settings"
+    )
+    async def get_config_recommendations() -> str:
+        """Get configuration recommendations for the cluster.
+        
+        Analyzes the Cassandra version and provides recommendations for:
+        - JVM settings and garbage collection
+        - Memory and performance tuning
+        - Security configurations
+        - Best practices for the specific version
+        
+        Note: Recommendation rules will be added incrementally.
+        """
+        try:
+            # Get Cassandra version
+            version = await utility.get_version()
+            
+            # Create analyzer with session and version
+            config_analyzer = ConfigurationAnalyzer(
+                service.connection.session,
+                version
+            )
+            recommendations = await config_analyzer.analyze()
+            
+            # Format output
+            output = [f"=== Configuration Recommendations ==="]
+            output.append(f"Cassandra Version: {version[0]}.{version[1]}.{version[2]}")
+            output.append("")
+            
+            if not recommendations:
+                output.append("No configuration recommendations available yet.")
+                output.append("Recommendation rules will be added in future updates.")
+            else:
+                # Format recommendations when they exist
+                for i, rec in enumerate(recommendations, 1):
+                    output.append(f"{i}. {rec.get('recommendation', 'Unknown')}")
+                    if 'category' in rec:
+                        output.append(f"   Category: {rec['category']}")
+                    if 'priority' in rec:
+                        output.append(f"   Priority: {rec['priority']}")
+                    if 'current' in rec:
+                        output.append(f"   Current: {rec['current']}")
+                    if 'suggested' in rec:
+                        output.append(f"   Suggested: {rec['suggested']}")
+                    if 'reason' in rec:
+                        output.append(f"   Reason: {rec['reason']}")
+                    output.append("")
+                    
+            return "\n".join(output)
+            
+        except Exception as e:
+            logger.error(f"Error getting config recommendations: {e}")
+            return f"Error getting configuration recommendations: {str(e)}"
 
     return mcp

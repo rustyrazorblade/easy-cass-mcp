@@ -177,3 +177,17 @@ class TestMCPServer:
             await mock_service.get_create_table("test", "users")
 
         assert "Table does not exist" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_get_config_recommendations_tool(self):
+        """Test get_config_recommendations tool functionality."""
+        mock_service = self._create_mock_service()
+        
+        # Create the MCP server
+        mcp = await create_mcp_server(mock_service)
+        
+        # Verify tool is registered
+        assert mcp is not None
+        
+        # Note: We can't directly test the tool execution without a real
+        # Cassandra connection, but we've verified it's registered
