@@ -9,7 +9,7 @@ from cassandra.cluster import (EXEC_PROFILE_DEFAULT, Cluster, ExecutionProfile,
 from cassandra.policies import (DCAwareRoundRobinPolicy,
                                 WhiteListRoundRobinPolicy)
 
-from constants import CONNECTION_TIMEOUT, MAX_CONCURRENT_QUERIES, QUERY_TIMEOUT
+from constants import CONNECTION_TIMEOUT, QUERY_TIMEOUT
 from exceptions import CassandraConnectionError, CassandraQueryError
 
 logger = logging.getLogger(__name__)
@@ -105,7 +105,10 @@ class CassandraConnection:
         statements_to_prepare = {
             "select_tables": "SELECT table_name FROM system_schema.tables WHERE keyspace_name = ?",
             "select_keyspaces": "SELECT keyspace_name FROM system_schema.keyspaces",
-            "select_columns": "SELECT * FROM system_schema.columns WHERE keyspace_name = ? AND table_name = ?",
+            "select_columns": (
+                "SELECT * FROM system_schema.columns "
+                "WHERE keyspace_name = ? AND table_name = ?"
+            ),
         }
 
         for name, query in statements_to_prepare.items():
@@ -237,11 +240,13 @@ class CassandraConnection:
                 self.session.shutdown()
             if self.cluster:
                 self.cluster.shutdown()
+        except Exception as e:
+            logger.error(f"Error during disconnect: {e}")
+        finally:
+            # Always mark as disconnected and clear resources, even on error
             self._is_connected = False
             self._execution_profiles.clear()
             self.prepared_statements.clear()
-        except Exception as e:
-            logger.error(f"Error during disconnect: {e}")
 
     async def __aenter__(self) -> "CassandraConnection":
         """Async context manager entry."""

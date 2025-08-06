@@ -6,8 +6,7 @@ from fastmcp import FastMCP
 from cassandra_service import CassandraService
 from cassandra_utility import CassandraUtility
 from compaction_analyzer import CompactionAnalyzer
-from constants import (MAX_DISPLAY_ROWS, MCP_SERVER_NAME, SYSTEM_KEYSPACE,
-                       SYSTEM_VIEWS_KEYSPACE, VALID_SYSTEM_KEYSPACES)
+from constants import MAX_DISPLAY_ROWS, MCP_SERVER_NAME, VALID_SYSTEM_KEYSPACES
 
 logger = logging.getLogger(__name__)
 

@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional
 
 from cassandra_connection import CassandraConnection
 from constants import MAX_CONCURRENT_QUERIES
-from exceptions import CassandraMetadataError, CassandraQueryError
+from exceptions import CassandraMetadataError
 
 logger = logging.getLogger(__name__)
 
