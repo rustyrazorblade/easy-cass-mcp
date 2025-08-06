@@ -8,3 +8,22 @@ wheels/
 
 # Virtual environments
 .venv
+
+.idea/*
+*.iml
+*.pyc
+.DS_Store
+.vagrant.v1*
+.tags*
+/.gradle/
+/out/
+/build/
+.jira-url
+*.ipr
+*.iws
+.sdkmanrc
+.idea
+.python-version
+.claude/settings.local.json
+.coverage
+
