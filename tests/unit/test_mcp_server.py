@@ -29,15 +29,24 @@ class TestMCPServer:
         mock_session = Mock()
         mock_service.connection = mock_connection
         mock_connection.session = mock_session
+        # Mock the new discovery methods
+        mock_service.discover_system_tables = AsyncMock(return_value={
+            "system": ["local", "peers"],
+            "system_views": ["disk_usage"]
+        })
+        mock_service.generate_system_table_description = Mock(
+            return_value="Test description for system tables"
+        )
         return mock_service
 
-    def test_tool_registration(self):
+    @pytest.mark.asyncio
+    async def test_tool_registration(self):
         """Test that tools are properly registered with the MCP server."""
         # Use helper to create mock service
         mock_service = self._create_mock_service()
 
-        # Create MCP server
-        mcp = create_mcp_server(mock_service)
+        # Create MCP server (now async)
+        mcp = await create_mcp_server(mock_service)
 
         # Check that the server has been created
         assert mcp is not None
@@ -56,7 +65,7 @@ class TestMCPServer:
         from mcp_server import create_mcp_server
 
         # Create the MCP server which registers the tools
-        mcp = create_mcp_server(mock_service)
+        mcp = await create_mcp_server(mock_service)
 
         # The tool is registered as a function on the mcp object
         # We'll test by mocking the service method directly
@@ -71,7 +80,7 @@ class TestMCPServer:
         mock_service = self._create_mock_service()
         mock_service.get_tables = AsyncMock(return_value=[])
 
-        mcp = create_mcp_server(mock_service)
+        mcp = await create_mcp_server(mock_service)
 
         # Test the service method
         tables = await mock_service.get_tables("empty_keyspace")
@@ -83,7 +92,7 @@ class TestMCPServer:
         mock_service = self._create_mock_service()
         mock_service.get_tables = AsyncMock(side_effect=Exception("Connection error"))
 
-        mcp = create_mcp_server(mock_service)
+        mcp = await create_mcp_server(mock_service)
 
         # Test error handling
         with pytest.raises(Exception) as exc_info:
@@ -102,7 +111,7 @@ class TestMCPServer:
         )"""
         mock_service.get_create_table = AsyncMock(return_value=create_statement)
 
-        mcp = create_mcp_server(mock_service)
+        mcp = await create_mcp_server(mock_service)
 
         # Test the service method
         result = await mock_service.get_create_table("test", "users")
@@ -118,7 +127,7 @@ class TestMCPServer:
             side_effect=Exception("Table does not exist")
         )
 
-        mcp = create_mcp_server(mock_service)
+        mcp = await create_mcp_server(mock_service)
 
         # Test error handling
         with pytest.raises(Exception) as exc_info:

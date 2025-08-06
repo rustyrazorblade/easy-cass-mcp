@@ -32,8 +32,8 @@ async def main():
         # Create service
         service = CassandraService(connection)
 
-        # Create and run MCP server
-        mcp = create_mcp_server(service)
+        # Create and run MCP server (now async to discover system tables)
+        mcp = await create_mcp_server(service)
         logger.info("Starting MCP server with HTTP transport")
         # Use run_async() in async contexts
         await mcp.run_async(transport="http")

@@ -179,3 +179,115 @@ class TestCassandraServiceUnit:
         formatted = service.format_single_node_results([], "192.168.1.1")
         assert "=== Results from node 192.168.1.1 ===" in formatted
         assert "No results" in formatted
+    
+    @pytest.mark.asyncio
+    async def test_get_cassandra_version(self):
+        """Test getting Cassandra version."""
+        service = CassandraService(Mock())
+        
+        # Mock execute_async to return version
+        mock_row = Mock()
+        mock_row.release_version = "4.0.11"
+        mock_result = [mock_row]
+        service.connection.execute_async = AsyncMock(return_value=mock_result)
+        
+        version = await service.get_cassandra_version()
+        assert version == (4, 0, 11)
+        
+        # Test caching - should not query again
+        service.connection.execute_async.reset_mock()
+        version2 = await service.get_cassandra_version()
+        assert version2 == (4, 0, 11)
+        service.connection.execute_async.assert_not_called()
+    
+    @pytest.mark.asyncio
+    async def test_get_cassandra_version_with_snapshot(self):
+        """Test parsing version with SNAPSHOT suffix."""
+        service = CassandraService(Mock())
+        
+        mock_row = Mock()
+        mock_row.release_version = "5.0.0-SNAPSHOT"
+        service.connection.execute_async = AsyncMock(return_value=[mock_row])
+        
+        version = await service.get_cassandra_version()
+        assert version == (5, 0, 0)
+    
+    @pytest.mark.asyncio
+    async def test_discover_system_tables_cassandra_4(self):
+        """Test discovering system tables for Cassandra 4.x."""
+        service = CassandraService(Mock())
+        
+        # Mock version check
+        service.get_cassandra_version = AsyncMock(return_value=(4, 0, 11))
+        
+        # Mock get_tables calls
+        service.get_tables = AsyncMock(side_effect=[
+            ["local", "peers", "compaction_history"],  # system tables
+            ["disk_usage", "local_read_latency", "thread_pools"]  # system_views tables
+        ])
+        
+        discovered = await service.discover_system_tables()
+        
+        assert "system" in discovered
+        assert "system_views" in discovered
+        assert "local" in discovered["system"]
+        assert "disk_usage" in discovered["system_views"]
+        
+        # Verify get_tables was called for both keyspaces
+        assert service.get_tables.call_count == 2
+        service.get_tables.assert_any_call("system")
+        service.get_tables.assert_any_call("system_views")
+    
+    @pytest.mark.asyncio
+    async def test_discover_system_tables_cassandra_3(self):
+        """Test discovering system tables for Cassandra 3.x (no system_views)."""
+        service = CassandraService(Mock())
+        
+        # Mock version check for Cassandra 3.11
+        service.get_cassandra_version = AsyncMock(return_value=(3, 11, 0))
+        
+        # Mock get_tables for system only
+        service.get_tables = AsyncMock(return_value=["local", "peers", "compaction_history"])
+        
+        discovered = await service.discover_system_tables()
+        
+        assert "system" in discovered
+        assert "system_views" not in discovered
+        assert "local" in discovered["system"]
+        
+        # Verify get_tables was only called for system keyspace
+        service.get_tables.assert_called_once_with("system")
+    
+    def test_generate_system_table_description(self):
+        """Test generating dynamic description for system tables."""
+        service = CassandraService(Mock())
+        
+        discovered_tables = {
+            "system": ["local", "peers", "unknown_table"],
+            "system_views": ["disk_usage", "thread_pools"]
+        }
+        
+        description = service.generate_system_table_description(discovered_tables)
+        
+        # Check that known tables have descriptions
+        assert "local: Current node information" in description
+        assert "peers: Information about other nodes" in description
+        assert "disk_usage: Disk space usage" in description
+        assert "thread_pools: Thread pool statistics" in description
+        
+        # Check sections are present
+        assert "AVAILABLE SYSTEM TABLES" in description
+        assert "AVAILABLE SYSTEM_VIEWS TABLES" in description
+        
+        # Check that unknown_table is included (but not schema tables)
+        assert "unknown_table" in description
+    
+    def test_generate_system_table_description_empty(self):
+        """Test generating description with no discovered tables."""
+        service = CassandraService(Mock())
+        
+        description = service.generate_system_table_description({})
+        
+        assert "Query database internal statistics" in description
+        assert "AVAILABLE SYSTEM TABLES" not in description
+        assert "AVAILABLE SYSTEM_VIEWS TABLES" not in description

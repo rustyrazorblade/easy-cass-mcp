@@ -11,12 +11,31 @@ from constants import MCP_SERVER_NAME, VALID_SYSTEM_KEYSPACES
 logger = logging.getLogger(__name__)
 
 
-def create_mcp_server(service: CassandraService) -> FastMCP:
-    """Create and configure the MCP server with async Cassandra tools."""
+async def create_mcp_server(service: CassandraService) -> FastMCP:
+    """Create and configure the MCP server with async Cassandra tools.
+    
+    This is now async to allow discovery of system tables for dynamic descriptions.
+    """
     mcp = FastMCP(name=MCP_SERVER_NAME)
 
     # Create utility instance
     utility = CassandraUtility(service.connection.session)
+    
+    # Discover available system tables for dynamic descriptions
+    try:
+        discovered_tables = await service.discover_system_tables()
+        system_table_description = service.generate_system_table_description(discovered_tables)
+    except Exception as e:
+        logger.warning(f"Failed to discover system tables: {e}")
+        # Fallback to a generic description
+        system_table_description = """Query database internal statistics from system or system_views keyspaces.
+        
+        Available tables depend on Cassandra version. Common tables include:
+        - system.local: Node information
+        - system.peers: Cluster peer information
+        - system_views.* (Cassandra 4.0+): Performance metrics and statistics
+        
+        All tables return node-specific data. Use node_addresses parameter to query specific nodes."""
 
     @mcp.tool(description="Retrieve all the tables in the requested keyspace.")
     async def get_tables(keyspace: str) -> str:
@@ -44,37 +63,7 @@ def create_mcp_server(service: CassandraService) -> FastMCP:
             logger.error(f"Error getting CREATE TABLE: {e}")
             return f"Error retrieving CREATE TABLE: {str(e)}"
 
-    @mcp.tool(
-        description="""Query database internal statistics from system or system_views keyspaces.
-
-    COMMON SYSTEM_VIEWS TABLES (performance metrics & statistics):
-    - disk_usage: Disk space usage per keyspace/table
-    - local_read_latency: Read latency statistics per table.  The count field exposes the number of reads.
-    - local_write_latency: Write latency statistics per table.  The count field exposes the number of writes.
-    - local_scan_latency: Scan latency statistics per table.  The count field exposes the number of scans.
-    - thread_pools: Thread pool statistics and queue depths.
-    - sstable_tasks: Active SSTable operations (compaction, cleanup, etc)
-    - streaming: Active streaming operations between nodes
-    - clients: Currently connected client sessions
-    - caches: Key cache, row cache, and counter cache statistics
-    - settings: Current database configuration settings
-    - system_properties: JVM system properties
-    - internode_inbound: Inbound internode messaging metrics
-    - internode_outbound: Outbound internode messaging metrics
-
-    COMMON SYSTEM TABLES (cluster metadata):
-    - local: Current node information (cluster name, DC, rack, tokens)
-    - peers: Information about other nodes in the cluster
-    - peers_v2: Extended peer information (Cassandra 4.0+)
-    - available_ranges: Token ranges available on this node
-    - transferred_ranges: Token ranges being transferred
-    - size_estimates: Table size estimates for each range
-
-    COMMON SYSTEM TABLES (performance and data statistics):
-    - compaction_history: History of completed compactions
-
-    All tables return node-specific data. Use node_addresses parameter to query specific nodes."""
-    )
+    @mcp.tool(description=system_table_description)
     async def query_system_table(
         keyspace: str, table: str, node_addresses: Optional[List[str]] = None
     ) -> str:

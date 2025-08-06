@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional
 
 from cassandra_connection import CassandraConnection
 from constants import MAX_CONCURRENT_QUERIES, MAX_DISPLAY_ROWS
-from exceptions import CassandraMetadataError
+from exceptions import CassandraMetadataError, CassandraVersionError
 
 logger = logging.getLogger(__name__)
 
@@ -14,6 +14,8 @@ class CassandraService:
 
     def __init__(self, connection: CassandraConnection) -> None:
         self.connection = connection
+        self._system_tables_cache: Optional[Dict[str, List[str]]] = None
+        self._cassandra_version: Optional[tuple] = None
 
     async def get_tables(self, keyspace: str) -> List[str]:
         """Get all tables in a keyspace asynchronously."""
@@ -309,3 +311,149 @@ class CassandraService:
 
         logger.info(f"Completed querying {keyspace}.{table} on {len(results)} nodes")
         return results
+    
+    async def get_cassandra_version(self) -> tuple:
+        """Get the Cassandra version as a tuple (major, minor, patch).
+        
+        Returns:
+            Tuple of (major, minor, patch) version numbers
+        """
+        if self._cassandra_version:
+            return self._cassandra_version
+            
+        try:
+            # Query system.local for version
+            result = await self.connection.execute_async(
+                "SELECT release_version FROM system.local"
+            )
+            if result:
+                row = result[0] if isinstance(result, list) else next(iter(result), None)
+                if row and hasattr(row, 'release_version'):
+                    version_str = row.release_version
+                    # Parse version like "4.0.11" or "5.0.0-SNAPSHOT"
+                    version_parts = version_str.split("-")[0].split(".")
+                    major = int(version_parts[0])
+                    minor = int(version_parts[1]) if len(version_parts) > 1 else 0
+                    patch = int(version_parts[2]) if len(version_parts) > 2 else 0
+                    self._cassandra_version = (major, minor, patch)
+                    logger.info(f"Detected Cassandra version: {major}.{minor}.{patch}")
+                    return self._cassandra_version
+        except Exception as e:
+            logger.error(f"Failed to get Cassandra version: {e}")
+            
+        # Default to assuming 4.0 if we can't determine
+        logger.warning("Could not determine Cassandra version, assuming 4.0.0")
+        self._cassandra_version = (4, 0, 0)
+        return self._cassandra_version
+    
+    async def discover_system_tables(self) -> Dict[str, List[str]]:
+        """Discover available system tables in the cluster.
+        
+        Returns:
+            Dictionary mapping keyspace names to lists of table names
+        """
+        if self._system_tables_cache:
+            return self._system_tables_cache
+            
+        result = {}
+        
+        # Always available: system keyspace tables
+        try:
+            system_tables = await self.get_tables("system")
+            result["system"] = system_tables
+            logger.info(f"Found {len(system_tables)} tables in system keyspace")
+        except Exception as e:
+            logger.error(f"Failed to get system tables: {e}")
+            result["system"] = []
+        
+        # Check for system_views (Cassandra 4.0+)
+        version = await self.get_cassandra_version()
+        if version[0] >= 4:
+            try:
+                system_views_tables = await self.get_tables("system_views")
+                result["system_views"] = system_views_tables
+                logger.info(f"Found {len(system_views_tables)} tables in system_views keyspace")
+            except Exception as e:
+                logger.warning(f"system_views keyspace not available: {e}")
+                result["system_views"] = []
+        else:
+            logger.info(f"Cassandra {version[0]}.{version[1]} does not have system_views keyspace")
+            
+        self._system_tables_cache = result
+        return result
+    
+    def generate_system_table_description(self, discovered_tables: Dict[str, List[str]]) -> str:
+        """Generate a dynamic description for the query_system_table tool.
+        
+        Args:
+            discovered_tables: Dictionary of discovered system tables
+            
+        Returns:
+            Formatted description string for the MCP tool
+        """
+        description_parts = ["Query database internal statistics from system keyspaces."]
+        
+        # Known table descriptions for common tables
+        system_table_docs = {
+            "system": {
+                "local": "Current node information (cluster name, DC, rack, tokens)",
+                "peers": "Information about other nodes in the cluster",
+                "peers_v2": "Extended peer information (Cassandra 4.0+)",
+                "size_estimates": "Table size estimates for each range",
+                "available_ranges": "Token ranges available on this node",
+                "transferred_ranges": "Token ranges being transferred",
+                "compaction_history": "History of completed compactions",
+                "sstable_activity": "Current SSTable activity",
+                "built_views": "Materialized views build status",
+                "view_builds_in_progress": "Currently building materialized views"
+            },
+            "system_views": {
+                "disk_usage": "Disk space usage per keyspace/table",
+                "local_read_latency": "Read latency statistics per table (count field shows number of reads)",
+                "local_write_latency": "Write latency statistics per table (count field shows number of writes)", 
+                "local_scan_latency": "Scan latency statistics per table (count field shows number of scans)",
+                "thread_pools": "Thread pool statistics and queue depths",
+                "sstable_tasks": "Active SSTable operations (compaction, cleanup, etc)",
+                "streaming": "Active streaming operations between nodes",
+                "clients": "Currently connected client sessions",
+                "caches": "Key cache, row cache, and counter cache statistics",
+                "settings": "Current database configuration settings",
+                "system_properties": "JVM system properties",
+                "internode_inbound": "Inbound internode messaging metrics",
+                "internode_outbound": "Outbound internode messaging metrics",
+                "coordinator_read_latency": "Coordinator read latency",
+                "coordinator_write_latency": "Coordinator write latency",
+                "coordinator_scan_latency": "Coordinator scan latency",
+                "tombstones_scanned": "Tombstone scan statistics",
+                "live_scanned": "Live cells scanned statistics",
+                "max_partition_size": "Maximum partition sizes per table",
+                "rows_per_partition": "Row count statistics per partition"
+            }
+        }
+        
+        # Add system tables section if available
+        if "system" in discovered_tables and discovered_tables["system"]:
+            description_parts.append("\nAVAILABLE SYSTEM TABLES (cluster metadata):")
+            for table in sorted(discovered_tables["system"]):
+                if table in system_table_docs["system"]:
+                    description_parts.append(f"  - {table}: {system_table_docs['system'][table]}")
+                else:
+                    # Only show tables we know are useful for operators
+                    if table not in ["IndexInfo", "batches", "paxos", "prepared_statements", 
+                                    "schema_aggregates", "schema_columnfamilies", "schema_columns",
+                                    "schema_functions", "schema_keyspaces", "schema_triggers",
+                                    "schema_types", "schema_usertypes"]:
+                        description_parts.append(f"  - {table}")
+        
+        # Add system_views section if available  
+        if "system_views" in discovered_tables and discovered_tables["system_views"]:
+            description_parts.append("\nAVAILABLE SYSTEM_VIEWS TABLES (performance metrics):")
+            for table in sorted(discovered_tables["system_views"]):
+                if table in system_table_docs["system_views"]:
+                    description_parts.append(f"  - {table}: {system_table_docs['system_views'][table]}")
+                else:
+                    description_parts.append(f"  - {table}")
+        
+        description_parts.append("\nAll tables return node-specific data. Use node_addresses parameter to query specific nodes.")
+        
+        return "\n".join(description_parts)
