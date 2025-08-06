@@ -6,13 +6,15 @@ from fastmcp import FastMCP
 from cassandra_service import CassandraService
 from cassandra_utility import CassandraUtility
 from compaction_analyzer import CompactionAnalyzer
+from constants import (MAX_DISPLAY_ROWS, MCP_SERVER_NAME, SYSTEM_KEYSPACE,
+                       SYSTEM_VIEWS_KEYSPACE, VALID_SYSTEM_KEYSPACES)
 
 logger = logging.getLogger(__name__)
 
 
 def create_mcp_server(service: CassandraService) -> FastMCP:
     """Create and configure the MCP server with async Cassandra tools."""
-    mcp = FastMCP(name="Cassandra MCP Server")
+    mcp = FastMCP(name=MCP_SERVER_NAME)
 
     # Create utility instance
     utility = CassandraUtility(service.connection.session)
@@ -80,8 +82,8 @@ def create_mcp_server(service: CassandraService) -> FastMCP:
         """Query a system or system_views table across specified nodes."""
         try:
             # Validate inputs
-            if keyspace not in ["system", "system_views"]:
-                return f"Error: keyspace must be 'system' or 'system_views', got '{keyspace}'"
+            if keyspace not in VALID_SYSTEM_KEYSPACES:
+                return f"Error: keyspace must be one of {VALID_SYSTEM_KEYSPACES}, got '{keyspace}'"
 
             # Execute query
             results = await service.query_system_table_on_nodes(
@@ -105,11 +107,11 @@ def create_mcp_server(service: CassandraService) -> FastMCP:
                     else:
                         # Show row count and first few rows
                         formatted_results.append(f"Returned {len(data)} rows")
-                        for i, row in enumerate(data[:10]):  # Show first 10 rows
+                        for i, row in enumerate(data[:MAX_DISPLAY_ROWS]):
                             formatted_results.append(f"  {row}")
-                        if len(data) > 10:
+                        if len(data) > MAX_DISPLAY_ROWS:
                             formatted_results.append(
-                                f"  ... and {len(data) - 10} more rows"
+                                f"  ... and {len(data) - MAX_DISPLAY_ROWS} more rows"
                             )
                 else:
                     formatted_results.append(str(data))

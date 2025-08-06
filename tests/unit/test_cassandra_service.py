@@ -1,4 +1,10 @@
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+"""Unit tests for the CassandraService module.
+
+This module contains unit tests for the CassandraService class,
+focusing on async operations and proper mocking of database connections.
+"""
+
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 
@@ -7,7 +13,14 @@ from cassandra_service import CassandraService
 
 
 class TestCassandraServiceUnit:
-    """Unit tests for async CassandraService."""
+    """Unit tests for async CassandraService.
+
+    Tests cover:
+    - Table retrieval operations
+    - Query execution with and without parameters
+    - Error handling for various scenarios
+    - Proper async/await patterns
+    """
 
     @pytest.mark.asyncio
     async def test_get_tables_with_mock(self):

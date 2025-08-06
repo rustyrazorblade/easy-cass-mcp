@@ -4,13 +4,15 @@ from typing import Any, Dict, Optional
 from cassandra.cluster import Session
 from cassandra.metadata import TableMetadata
 
+from exceptions import CassandraMetadataError
+
 logger = logging.getLogger(__name__)
 
 
 class CassandraTable:
     """Abstraction for Cassandra table operations and metadata."""
 
-    def __init__(self, session: Session, keyspace: str, table: str):
+    def __init__(self, session: Session, keyspace: str, table: str) -> None:
         self.session = session
         self.keyspace = keyspace
         self.table = table
@@ -25,21 +27,25 @@ class CassandraTable:
             cluster_metadata = self.session.cluster.metadata
             keyspace_metadata = cluster_metadata.keyspaces.get(self.keyspace)
             if not keyspace_metadata:
-                raise ValueError(f"Keyspace '{self.keyspace}' not found")
+                raise CassandraMetadataError(f"Keyspace '{self.keyspace}' not found")
 
             table_metadata = keyspace_metadata.tables.get(self.table)
             if not table_metadata:
-                raise ValueError(
+                raise CassandraMetadataError(
                     f"Table '{self.table}' not found in keyspace '{self.keyspace}'"
                 )
 
             self._metadata = table_metadata
             return self._metadata
+        except CassandraMetadataError:
+            raise
         except Exception as e:
             logger.error(
                 f"Failed to get metadata for {self.keyspace}.{self.table}: {e}"
             )
-            raise
+            raise CassandraMetadataError(
+                f"Failed to get metadata for {self.keyspace}.{self.table}: {e}"
+            ) from e
 
     async def get_compaction_strategy(self) -> Dict[str, Any]:
         """Get the compaction strategy configuration for this table.

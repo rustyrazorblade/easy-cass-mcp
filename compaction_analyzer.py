@@ -2,6 +2,7 @@ import logging
 from typing import Any, Dict, List, Tuple
 
 from cassandra_table import CassandraTable
+from constants import STCS_CLASS, UCS_CLASS, UCS_MIN_VERSION
 
 logger = logging.getLogger(__name__)
 
@@ -9,7 +10,9 @@ logger = logging.getLogger(__name__)
 class CompactionAnalyzer:
     """Analyzes table compaction strategies and provides optimization recommendations."""
 
-    def __init__(self, table: CassandraTable, cassandra_version: Tuple[int, int, int]):
+    def __init__(
+        self, table: CassandraTable, cassandra_version: Tuple[int, int, int]
+    ) -> None:
         self.table = table
         self.cassandra_version = cassandra_version
         self.major_version = cassandra_version[0]
@@ -40,18 +43,15 @@ class CompactionAnalyzer:
     def _should_recommend_ucs(self, compaction_class: str) -> bool:
         """Check if UCS should be recommended based on current strategy and version."""
         return (
-            "SizeTieredCompactionStrategy" in compaction_class
-            and self.major_version >= 5
+            STCS_CLASS in compaction_class and self.cassandra_version >= UCS_MIN_VERSION
         )
 
     def _create_ucs_recommendation(self) -> Dict[str, Any]:
         """Create a recommendation for switching to UCS."""
         return {
             "type": "compaction_strategy",
-            "current": "SizeTieredCompactionStrategy (STCS)",
-            "recommendation": (
-                "UnifiedCompactionStrategy (UCS) with scaling_parameters: T4"
-            ),
+            "current": f"{STCS_CLASS} (STCS)",
+            "recommendation": (f"{UCS_CLASS} (UCS) with scaling_parameters: T4"),
             "reason": (
                 "UCS with T4 scaling parameters provides better "
                 "performance and more predictable latencies "

@@ -1,5 +1,10 @@
-import asyncio
-from unittest.mock import AsyncMock, Mock, patch
+"""Unit tests for the MCP server module.
+
+This module tests the FastMCP server implementation and its tools
+for interacting with Cassandra through the Model Context Protocol.
+"""
+
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 
@@ -8,7 +13,14 @@ from mcp_server import create_mcp_server
 
 
 class TestMCPServer:
-    """Unit tests for MCP server tools."""
+    """Unit tests for MCP server tools.
+
+    Tests cover:
+    - Tool registration with FastMCP
+    - Individual tool functionality
+    - Error handling in MCP tools
+    - Proper async operation of tools
+    """
 
     def _create_mock_service(self):
         """Helper to create a properly mocked CassandraService."""

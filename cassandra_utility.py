@@ -1,9 +1,10 @@
 import logging
-from typing import Tuple
+from typing import Optional, Tuple
 
 from cassandra.cluster import Session
 
 from cassandra_table import CassandraTable
+from exceptions import CassandraVersionError
 
 logger = logging.getLogger(__name__)
 
@@ -11,9 +12,9 @@ logger = logging.getLogger(__name__)
 class CassandraUtility:
     """Utility class for common Cassandra operations."""
 
-    def __init__(self, session: Session):
+    def __init__(self, session: Session) -> None:
         self.session = session
-        self._version_cache: Tuple[int, int, int] = None
+        self._version_cache: Optional[Tuple[int, int, int]] = None
 
     async def get_version(self) -> Tuple[int, int, int]:
         """Get Cassandra version as a tuple (major, minor, patch).
@@ -56,10 +57,12 @@ class CassandraUtility:
 
         except Exception as e:
             logger.error(f"Failed to get Cassandra version: {e}")
-            raise RuntimeError(f"Unable to determine Cassandra version: {e}")
+            raise CassandraVersionError(
+                f"Unable to determine Cassandra version: {e}"
+            ) from e
 
         if not version_str:
-            raise RuntimeError(
+            raise CassandraVersionError(
                 "Unable to determine Cassandra version: no version information available"
             )
 
@@ -77,7 +80,9 @@ class CassandraUtility:
             return (major, minor, patch)
         except (ValueError, IndexError) as e:
             logger.error(f"Failed to parse version '{version_str}': {e}")
-            raise ValueError(f"Invalid version format '{version_str}': {e}")
+            raise CassandraVersionError(
+                f"Invalid version format '{version_str}': {e}"
+            ) from e
 
     def get_table(self, keyspace: str, table: str) -> CassandraTable:
         """Create a CassandraTable object for the specified keyspace and table.
