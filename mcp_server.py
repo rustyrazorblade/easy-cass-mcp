@@ -6,7 +6,7 @@ from fastmcp import FastMCP
 from cassandra_service import CassandraService
 from cassandra_utility import CassandraUtility
 from compaction_analyzer import CompactionAnalyzer
-from constants import MAX_DISPLAY_ROWS, MCP_SERVER_NAME, VALID_SYSTEM_KEYSPACES
+from constants import MCP_SERVER_NAME, VALID_SYSTEM_KEYSPACES
 
 logger = logging.getLogger(__name__)
 
@@ -84,38 +84,13 @@ def create_mcp_server(service: CassandraService) -> FastMCP:
             if keyspace not in VALID_SYSTEM_KEYSPACES:
                 return f"Error: keyspace must be one of {VALID_SYSTEM_KEYSPACES}, got '{keyspace}'"
 
-            # Execute query
+            # Delegate to service layer
             results = await service.query_system_table_on_nodes(
                 keyspace, table, node_addresses
             )
 
-            # Format results for display
-            if not results:
-                return "No results returned"
-
-            formatted_results = []
-            formatted_results.append(f"=== Query: SELECT * FROM {keyspace}.{table} ===")
-
-            for node, data in results.items():
-                formatted_results.append(f"\n--- Node: {node} ---")
-                if isinstance(data, dict) and "error" in data:
-                    formatted_results.append(f"Error: {data['error']}")
-                elif isinstance(data, list):
-                    if not data:
-                        formatted_results.append("No results")
-                    else:
-                        # Show row count and first few rows
-                        formatted_results.append(f"Returned {len(data)} rows")
-                        for i, row in enumerate(data[:MAX_DISPLAY_ROWS]):
-                            formatted_results.append(f"  {row}")
-                        if len(data) > MAX_DISPLAY_ROWS:
-                            formatted_results.append(
-                                f"  ... and {len(data) - MAX_DISPLAY_ROWS} more rows"
-                            )
-                else:
-                    formatted_results.append(str(data))
-
-            return "\n".join(formatted_results)
+            # Use service formatting method
+            return service.format_system_table_results(results, keyspace, table)
 
         except Exception as e:
             logger.error(f"Error querying {keyspace}.{table}: {e}")
@@ -127,25 +102,12 @@ def create_mcp_server(service: CassandraService) -> FastMCP:
     async def query_all_nodes(query: str) -> str:
         """Execute a query on all nodes and return node-specific results."""
         try:
+            # Delegate to service layer
             results = await service.execute_on_all_nodes(query)
-
-            # Format results for display
-            formatted_results = []
-            for node, data in results.items():
-                formatted_results.append(f"\n=== Node: {node} ===")
-                if isinstance(data, dict) and "error" in data:
-                    formatted_results.append(f"Error: {data['error']}")
-                elif isinstance(data, list):
-                    if not data:
-                        formatted_results.append("No results")
-                    else:
-                        # Convert rows to readable format
-                        for row in data:
-                            formatted_results.append(str(row))
-                else:
-                    formatted_results.append(str(data))
-
-            return "\n".join(formatted_results)
+            
+            # Use service formatting method
+            return service.format_node_results(results)
+            
         except Exception as e:
             logger.error(f"Error executing query on all nodes: {e}")
             return f"Error executing query on all nodes: {str(e)}"
@@ -156,21 +118,12 @@ def create_mcp_server(service: CassandraService) -> FastMCP:
     async def query_node(node_address: str, query: str) -> str:
         """Execute a query on a specific node."""
         try:
+            # Delegate to service layer
             result = await service.execute_on_node(node_address, query)
-
-            # Format results
-            if not result:
-                return f"No results from node {node_address}"
-
-            formatted_results = [f"=== Results from node {node_address} ==="]
-            rows = list(result)
-            if not rows:
-                formatted_results.append("No results")
-            else:
-                for row in rows:
-                    formatted_results.append(str(row))
-
-            return "\n".join(formatted_results)
+            
+            # Use service formatting method
+            return service.format_single_node_results(result, node_address)
+            
         except Exception as e:
             logger.error(f"Error executing query on node {node_address}: {e}")
             return f"Error executing query on node {node_address}: {str(e)}"

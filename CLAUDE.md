@@ -184,34 +184,93 @@ When adding tests:
 
 ## MCP Development
 
+### Architectural Principles
+
+**IMPORTANT: The MCP server should be a very light shim over classes that implement the functionality, to make them easier to test.**
+
+The MCP server (`mcp_server.py`) should follow these principles:
+
+1. **Minimal Business Logic**: MCP tool functions should contain minimal business logic. They should:
+   - Parse and validate input parameters
+   - Call appropriate service methods
+   - Format the response for display
+   - Handle top-level errors gracefully
+
+2. **Service Layer Pattern**: All business logic should be in service classes:
+   - `CassandraService`: Core Cassandra operations (queries, metadata)
+   - `CompactionAnalyzer`: Table optimization analysis
+   - `CassandraUtility`: Utility operations and abstractions
+   - Additional service classes for new domains
+
+3. **Testing Strategy**: This architecture enables:
+   - Unit testing of service methods in isolation
+   - Mocking service dependencies for MCP tool tests
+   - Integration testing with real Cassandra instances
+   - Clear separation of concerns
+
+Example of proper MCP tool structure:
+```python
+@mcp.tool(description="Clear, concise description")
+async def mcp_tool_name(param1: str, param2: int) -> str:
+    """Tool docstring for MCP clients."""
+    try:
+        # Simple input validation
+        if not param1:
+            return "Error: param1 is required"
+        
+        # Delegate to service layer
+        result = await service.business_logic_method(param1, param2)
+        
+        # Format response for display
+        return format_result_for_display(result)
+        
+    except SpecificException as e:
+        logger.error(f"Error in tool: {e}")
+        return f"Error: {str(e)}"
+```
+
 ### Adding New MCP Capabilities
 When extending the MCP server with new functionality:
 
-1. **Adding a new tool**: Add a new method in `mcp_server.py` annotated with `@mcp.tool`
-   ```python
-   @mcp.tool()
-   async def new_tool_name(param1: str, param2: int):
-       """Tool description that will be shown to clients"""
-       # Implementation here
-       pass
-   ```
+1. **Create or extend a service class** with the business logic
+2. **Add comprehensive unit tests** for the service methods
+3. **Add a thin MCP tool wrapper** that delegates to the service
+4. **Test the MCP tool** with mocked service dependencies
 
-2. **Adding a new prompt**: Add a new method in `mcp_server.py` annotated with `@mcp.prompt`
-   ```python
-   @mcp.prompt()
-   async def new_prompt_name():
-       """Prompt description"""
-       # Return prompt content
-       pass
-   ```
+Example workflow:
+```python
+# 1. In cassandra_service.py or new service file
+class CassandraService:
+    async def new_business_logic(self, param: str) -> Dict[str, Any]:
+        """Implement actual functionality here with full logic."""
+        # Complex business logic
+        # Error handling
+        # Data processing
+        return processed_result
 
-3. **Adding a new resource**: Add a new method in `mcp_server.py` annotated with `@mcp.resource`
-   ```python
-   @mcp.resource()
-   async def new_resource_name():
-       """Resource description"""
-       # Return resource data
-       pass
-   ```
+# 2. In test_cassandra_service.py
+async def test_new_business_logic():
+    """Test the service method thoroughly."""
+    service = CassandraService(mock_connection)
+    result = await service.new_business_logic("test")
+    assert result == expected
+
+# 3. In mcp_server.py
+@mcp.tool(description="User-friendly description")
+async def new_mcp_tool(param: str) -> str:
+    """Minimal wrapper around service method."""
+    try:
+        result = await service.new_business_logic(param)
+        return format_for_display(result)
+    except Exception as e:
+        return f"Error: {str(e)}"
+
+# 4. In test_mcp_server.py  
+async def test_new_mcp_tool():
+    """Test MCP tool with mocked service."""
+    mock_service = Mock()
+    mock_service.new_business_logic.return_value = test_data
+    # Test the MCP tool behavior
+```
 
 All new MCP methods should follow the conventions established by existing tools in the file.

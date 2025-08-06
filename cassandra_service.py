@@ -3,7 +3,7 @@ import logging
 from typing import Any, Dict, List, Optional
 
 from cassandra_connection import CassandraConnection
-from constants import MAX_CONCURRENT_QUERIES
+from constants import MAX_CONCURRENT_QUERIES, MAX_DISPLAY_ROWS
 from exceptions import CassandraMetadataError
 
 logger = logging.getLogger(__name__)
@@ -126,6 +126,109 @@ class CassandraService:
 
         logger.info(f"Completed query on {len(results)} nodes")
         return results
+
+    def format_node_results(self, results: Dict[str, Any], query: str = None) -> str:
+        """Format results from multiple nodes for display.
+        
+        Args:
+            results: Dictionary mapping node addresses to query results
+            query: Optional query string to include in output
+            
+        Returns:
+            Formatted string for display
+        """
+        if not results:
+            return "No results returned"
+            
+        formatted_results = []
+        
+        # Add query header if provided
+        if query:
+            formatted_results.append(f"=== Query: {query} ===")
+        
+        for node, data in results.items():
+            formatted_results.append(f"\n=== Node: {node} ===")
+            
+            if isinstance(data, dict) and "error" in data:
+                formatted_results.append(f"Error: {data['error']}")
+            elif isinstance(data, list):
+                if not data:
+                    formatted_results.append("No results")
+                else:
+                    # Convert rows to readable format
+                    for row in data:
+                        formatted_results.append(str(row))
+            else:
+                formatted_results.append(str(data))
+                
+        return "\n".join(formatted_results)
+    
+    def format_system_table_results(
+        self, results: Dict[str, Any], keyspace: str, table: str
+    ) -> str:
+        """Format system table query results with row limiting.
+        
+        Args:
+            results: Dictionary mapping node addresses to query results
+            keyspace: Keyspace name
+            table: Table name
+            
+        Returns:
+            Formatted string for display with row limits applied
+        """
+        if not results:
+            return "No results returned"
+            
+        formatted_results = []
+        formatted_results.append(f"=== Query: SELECT * FROM {keyspace}.{table} ===")
+        
+        for node, data in results.items():
+            formatted_results.append(f"\n--- Node: {node} ---")
+            
+            if isinstance(data, dict) and "error" in data:
+                formatted_results.append(f"Error: {data['error']}")
+            elif isinstance(data, list):
+                if not data:
+                    formatted_results.append("No results")
+                else:
+                    # Show row count and first few rows
+                    formatted_results.append(f"Returned {len(data)} rows")
+                    for i, row in enumerate(data[:MAX_DISPLAY_ROWS]):
+                        formatted_results.append(f"  {row}")
+                    if len(data) > MAX_DISPLAY_ROWS:
+                        formatted_results.append(
+                            f"  ... and {len(data) - MAX_DISPLAY_ROWS} more rows"
+                        )
+            else:
+                formatted_results.append(str(data))
+                
+        return "\n".join(formatted_results)
+    
+    def format_single_node_results(
+        self, result: Any, node_address: str
+    ) -> str:
+        """Format results from a single node query.
+        
+        Args:
+            result: Query result from the node
+            node_address: Address of the node
+            
+        Returns:
+            Formatted string for display
+        """
+        if result is None:
+            return f"No results from node {node_address}"
+            
+        formatted_results = [f"=== Results from node {node_address} ==="]
+        rows = list(result) if result else []
+        
+        if not rows:
+            formatted_results.append("No results")
+        else:
+            for row in rows:
+                formatted_results.append(str(row))
+                
+        return "\n".join(formatted_results)
 
     async def query_system_table_on_nodes(
         self, keyspace: str, table: str, node_addresses: Optional[List[str]] = None

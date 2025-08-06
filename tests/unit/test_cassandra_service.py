@@ -100,3 +100,82 @@ class TestCassandraServiceUnit:
 
         # Verify call
         mock_connection.execute_async.assert_called_once_with(query, None)
+    
+    def test_format_node_results_empty(self):
+        """Test formatting empty node results."""
+        service = CassandraService(Mock())
+        result = service.format_node_results({})
+        assert result == "No results returned"
+    
+    def test_format_node_results_with_data(self):
+        """Test formatting node results with data."""
+        service = CassandraService(Mock())
+        results = {
+            "192.168.1.1": [{"col1": "val1", "col2": "val2"}],
+            "192.168.1.2": []
+        }
+        
+        formatted = service.format_node_results(results)
+        assert "=== Node: 192.168.1.1 ===" in formatted
+        assert "=== Node: 192.168.1.2 ===" in formatted
+        assert "{'col1': 'val1', 'col2': 'val2'}" in formatted
+        assert "No results" in formatted
+    
+    def test_format_node_results_with_query(self):
+        """Test formatting node results with query header."""
+        service = CassandraService(Mock())
+        results = {"192.168.1.1": []}
+        
+        formatted = service.format_node_results(results, "SELECT * FROM test")
+        assert "=== Query: SELECT * FROM test ===" in formatted
+        assert "=== Node: 192.168.1.1 ===" in formatted
+    
+    def test_format_node_results_with_error(self):
+        """Test formatting node results with errors."""
+        service = CassandraService(Mock())
+        results = {
+            "192.168.1.1": {"error": "Connection timeout"},
+            "192.168.1.2": [{"data": "ok"}]
+        }
+        
+        formatted = service.format_node_results(results)
+        assert "Error: Connection timeout" in formatted
+        assert "{'data': 'ok'}" in formatted
+    
+    def test_format_system_table_results(self):
+        """Test formatting system table results with row limiting."""
+        service = CassandraService(Mock())
+        
+        # Create results with more than MAX_DISPLAY_ROWS
+        many_rows = [{"id": i} for i in range(15)]
+        results = {
+            "192.168.1.1": many_rows,
+            "192.168.1.2": []
+        }
+        
+        formatted = service.format_system_table_results(results, "system", "local")
+        assert "=== Query: SELECT * FROM system.local ===" in formatted
+        assert "--- Node: 192.168.1.1 ---" in formatted
+        assert "Returned 15 rows" in formatted
+        assert "... and 5 more rows" in formatted  # MAX_DISPLAY_ROWS is 10
+        assert "--- Node: 192.168.1.2 ---" in formatted
+    
+    def test_format_single_node_results(self):
+        """Test formatting single node results."""
+        service = CassandraService(Mock())
+        
+        # Test with results
+        result = [{"col1": "val1"}, {"col1": "val2"}]
+        formatted = service.format_single_node_results(result, "192.168.1.1")
+        assert "=== Results from node 192.168.1.1 ===" in formatted
+        assert "{'col1': 'val1'}" in formatted
+        assert "{'col1': 'val2'}" in formatted
+        
+        # Test with no results
+        formatted = service.format_single_node_results(None, "192.168.1.1")
+        assert "No results from node 192.168.1.1" in formatted
+        
+        # Test with empty list
+        formatted = service.format_single_node_results([], "192.168.1.1")
+        assert "=== Results from node 192.168.1.1 ===" in formatted
+        assert "No results" in formatted
