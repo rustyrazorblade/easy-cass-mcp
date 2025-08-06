@@ -9,12 +9,8 @@ from constants import (DEFAULT_DATACENTER, DEFAULT_PORT,
 
 class CassandraConfig(BaseSettings):
     """Configuration for Cassandra MCP server."""
-    
-    model_config = ConfigDict(
-        env_prefix="CASSANDRA_",
-        env_file=".env",
-        extra="ignore"
-    )
+
+    model_config = ConfigDict(env_prefix="CASSANDRA_", env_file=".env", extra="ignore")
 
     # Connection settings
     contact_points: List[str] = ["localhost"]

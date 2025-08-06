@@ -10,6 +10,7 @@ DEFAULT_DATACENTER = "datacenter1"
 DEFAULT_PROTOCOL_VERSION = 5
 CONNECTION_TIMEOUT = 30  # seconds
 QUERY_TIMEOUT = 10  # seconds
+MAX_QUERY_LOG_LENGTH = 100  # characters
 
 # System keyspaces
 SYSTEM_KEYSPACE = "system"

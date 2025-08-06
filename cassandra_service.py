@@ -3,6 +3,8 @@ import logging
 from typing import Any, Dict, List, Optional
 
 from cassandra_connection import CassandraConnection
+from constants import MAX_CONCURRENT_QUERIES
+from exceptions import CassandraMetadataError, CassandraQueryError
 
 logger = logging.getLogger(__name__)
 
@@ -10,7 +12,7 @@ logger = logging.getLogger(__name__)
 class CassandraService:
     """Service layer for async Cassandra operations."""
 
-    def __init__(self, connection: CassandraConnection):
+    def __init__(self, connection: CassandraConnection) -> None:
         self.connection = connection
 
     async def get_tables(self, keyspace: str) -> List[str]:
@@ -30,31 +32,33 @@ class CassandraService:
         try:
             # Get table metadata from cluster metadata
             if not self.connection.cluster:
-                raise Exception("Cluster connection not established")
+                raise CassandraMetadataError("Cluster connection not established")
 
             # Check if keyspace exists in metadata
             if keyspace not in self.connection.cluster.metadata.keyspaces:
-                raise Exception(f"Keyspace {keyspace} not found")
+                raise CassandraMetadataError(f"Keyspace {keyspace} not found")
 
             keyspace_metadata = self.connection.cluster.metadata.keyspaces[keyspace]
 
             # Check if table exists in keyspace
             if table not in keyspace_metadata.tables:
-                raise Exception(f"Table {keyspace}.{table} not found")
+                raise CassandraMetadataError(f"Table {keyspace}.{table} not found")
 
             table_metadata = keyspace_metadata.tables[table]
 
             # Use export_as_string() to get CREATE TABLE statement with indexes
             create_statement = table_metadata.export_as_string()
 
-            logger.info(
-                f"Retrieved CREATE TABLE statement for {keyspace}.{table} using TableMetadata.export_as_string()"
-            )
+            logger.info(f"Retrieved CREATE TABLE statement for {keyspace}.{table}")
             return create_statement
 
+        except CassandraMetadataError:
+            raise
         except Exception as e:
             logger.error(f"Error retrieving CREATE TABLE for {keyspace}.{table}: {e}")
-            raise
+            raise CassandraMetadataError(
+                f"Error retrieving CREATE TABLE for {keyspace}.{table}: {e}"
+            ) from e
 
     async def execute_query(
         self, query: str, parameters: Optional[tuple] = None
@@ -105,9 +109,16 @@ class CassandraService:
                 logger.error(f"Failed to query host {host_address}: {e}")
                 return host_address, {"error": str(e)}
 
-        # Run queries concurrently
-        tasks = [query_host(host) for host in hosts]
-        query_results = await asyncio.gather(*tasks, return_exceptions=False)
+        # Run queries concurrently with limit
+        # Process in batches to avoid overwhelming the cluster
+        batch_size = min(MAX_CONCURRENT_QUERIES, len(hosts))
+        query_results = []
+
+        for i in range(0, len(hosts), batch_size):
+            batch = hosts[i : i + batch_size]
+            tasks = [query_host(host) for host in batch]
+            batch_results = await asyncio.gather(*tasks, return_exceptions=False)
+            query_results.extend(batch_results)
 
         # Build results dictionary
         for host_address, result in query_results:
@@ -178,9 +189,16 @@ class CassandraService:
                 )
                 return host_address, {"error": str(e)}
 
-        # Run queries concurrently
-        tasks = [query_host(host) for host in hosts_to_query]
-        query_results = await asyncio.gather(*tasks, return_exceptions=False)
+        # Run queries concurrently with limit
+        # Process in batches to avoid overwhelming the cluster
+        batch_size = min(MAX_CONCURRENT_QUERIES, len(hosts_to_query))
+        query_results = []
+
+        for i in range(0, len(hosts_to_query), batch_size):
+            batch = hosts_to_query[i : i + batch_size]
+            tasks = [query_host(host) for host in batch]
+            batch_results = await asyncio.gather(*tasks, return_exceptions=False)
+            query_results.extend(batch_results)
 
         # Build results dictionary
         for host_address, result in query_results:

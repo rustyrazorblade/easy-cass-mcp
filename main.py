@@ -20,20 +20,15 @@ async def main():
     # Load configuration
     config = CassandraConfig()
 
-    # Create connection
-    connection = CassandraConnection(
+    # Create connection using context manager for proper cleanup
+    async with CassandraConnection(
         contact_points=config.contact_points,
         port=config.port,
         datacenter=config.datacenter,
         username=config.username,
         password=config.password,
         protocol_version=config.protocol_version,
-    )
-
-    try:
-        # Connect to Cassandra
-        await connection.connect()
-
+    ) as connection:
         # Create service
         service = CassandraService(connection)
 
@@ -42,10 +37,6 @@ async def main():
         logger.info("Starting MCP server with HTTP transport")
         # Use run_async() in async contexts
         await mcp.run_async(transport="http")
-
-    finally:
-        # Ensure cleanup on exit
-        connection.disconnect()
 
 
 if __name__ == "__main__":
