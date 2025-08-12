@@ -4,7 +4,7 @@ from typing import Any, Dict, Optional
 from cassandra.cluster import Session
 from cassandra.metadata import TableMetadata
 
-from exceptions import CassandraMetadataError
+from .exceptions import CassandraMetadataError
 
 logger = logging.getLogger(__name__)
 

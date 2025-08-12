@@ -8,7 +8,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from configuration_analyzer import ConfigurationAnalyzer
+from ecm.configuration_analyzer import ConfigurationAnalyzer
 
 
 class TestConfigurationAnalyzer:

@@ -9,8 +9,8 @@ from cassandra.cluster import (EXEC_PROFILE_DEFAULT, Cluster, ExecutionProfile,
 from cassandra.policies import (DCAwareRoundRobinPolicy,
                                 WhiteListRoundRobinPolicy)
 
-from constants import CONNECTION_TIMEOUT, QUERY_TIMEOUT
-from exceptions import CassandraConnectionError, CassandraQueryError
+from .constants import CONNECTION_TIMEOUT, QUERY_TIMEOUT
+from .exceptions import CassandraConnectionError, CassandraQueryError
 
 logger = logging.getLogger(__name__)
 

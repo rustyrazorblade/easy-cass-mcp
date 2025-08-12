@@ -2,6 +2,28 @@
 
 A streamable MCP server that leverages virtual tables to interact with an Apache Cassandra cluster.
 
+## Quick Start
+
+```bash
+# Set up development environment
+make dev
+
+# Run tests
+make test
+
+# Start the server locally
+make run
+
+# Start with Docker Compose (includes Cassandra)
+make docker-compose-up
+
+# Build Docker image
+make docker-build
+
+# See all available commands
+make help
+```
+
 ## Setup Instructions
 
 1. Install uv - a fast Python package and project manager that replaces pip, pip-tools, pipx, poetry, pyenv, virtualenv, and more. Follow the installation instructions at: https://docs.astral.sh/uv/getting-started/installation/
@@ -131,28 +153,146 @@ After configuring the MCP server, you can use natural language to interact with 
 - "Show me the schema for the users table in my_keyspace"
 - "Execute SELECT * FROM system_views.disk_usage on all nodes"
 
+## Docker Support
+
+### Quick Start with Docker
+
+The easiest way to run the Cassandra MCP server is using Docker:
+
+```bash
+# Build and run with docker-compose (includes Cassandra)
+make docker-compose-up
+
+# Or build just the MCP server image
+make docker-build
+
+# Run with an existing Cassandra cluster
+make docker-run CASSANDRA_HOST=your-cassandra-host
+
+# Build a release (runs tests and builds Docker image)
+make release
+
+# Push to Docker registry
+make docker-push DOCKER_REGISTRY=your-registry.com
+```
+
+### Docker Configuration
+
+The Docker container supports the following environment variables:
+
+| Environment Variable | Description | Default |
+|---------------------|-------------|---------|
+| `CASSANDRA_HOST` | Cassandra hostname or IP | `cassandra` |
+| `CASSANDRA_PORT` | Cassandra native protocol port | `9042` |
+| `CASSANDRA_DATACENTER` | Cassandra datacenter name | `datacenter1` |
+| `CASSANDRA_USERNAME` | Authentication username | None |
+| `CASSANDRA_PASSWORD` | Authentication password | None |
+| `LOG_LEVEL` | Logging level (DEBUG, INFO, WARNING, ERROR) | `INFO` |
+
+### Docker Compose
+
+The `docker-compose.yml` file includes:
+- **mcp-server**: The Cassandra MCP server (port 8000)
+- **cassandra**: A Cassandra 4.1 instance for local development (port 9042)
+
+To use with your own Cassandra cluster, modify the environment variables in `docker-compose.yml` or create a `.env` file:
+
+```bash
+# .env file for docker-compose
+CASSANDRA_HOST=my-cassandra-cluster.example.com
+CASSANDRA_PORT=9042
+CASSANDRA_USERNAME=myuser
+CASSANDRA_PASSWORD=mypassword
+```
+
+### Production Deployment
+
+For production deployments:
+
+1. Use specific image tags instead of `latest`
+2. Configure resource limits in docker-compose or Kubernetes
+3. Use secrets management for credentials
+4. Enable TLS/SSL for Cassandra connections
+5. Configure appropriate health checks and monitoring
+
+Example production docker-compose override:
+
+```yaml
+# docker-compose.prod.yml
+version: '3.8'
+
+services:
+  mcp-server:
+    image: cassandra-mcp-server:1.0.0
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+    environment:
+      - LOG_LEVEL=WARNING
+    secrets:
+      - cassandra_password
+    restart: always
+
+secrets:
+  cassandra_password:
+    external: true
+```
+
+## Makefile Commands
+
+The project includes a comprehensive Makefile for common development tasks:
+
+### Development Commands
+- `make help` - Show all available commands
+- `make dev` - Set up development environment
+- `make install` - Install Python dependencies
+- `make install-dev` - Install all dependencies including dev
+- `make run` - Run the MCP server locally
+
+### Testing & Quality
+- `make test` - Run all tests
+- `make test-coverage` - Run tests with coverage report
+- `make format` - Format code with black and isort
+- `make lint` - Run linting checks
+- `make check` - Run all quality checks (format, lint, test)
+
+### Docker Commands
+- `make docker-build` - Build Docker image
+- `make docker-run` - Run Docker container
+- `make docker-push` - Push image to registry
+- `make docker-compose-up` - Start services with docker-compose
+- `make docker-compose-down` - Stop services
+- `make docker-compose-logs` - Show logs
+- `make docker-compose-clean` - Stop and remove volumes
+
+### Release Commands
+- `make release` - Build a release (tests + Docker build)
+- `make release-patch` - Create patch version (x.y.Z+1)
+- `make release-minor` - Create minor version (x.Y+1.0)
+- `make release-major` - Create major version (X+1.0.0)
+- `make version` - Show current version
+
 ## Running Tests
 
-Run the test suite using pytest:
+Run the test suite using the Makefile:
 
 ```bash
 # Run all tests
-pytest
+make test
 
-# Run tests with verbose output
+# Run tests with coverage
+make test-coverage
+
+# Run all code quality checks
+make check
+
+# Or use pytest directly
 pytest -v
-
-# Run a specific test file
-pytest tests/test_specific.py
-
-# Run a specific test function
-pytest tests/test_specific.py::test_function
-
-# Run tests with coverage report
 pytest --cov=.
-
-# Run all code quality checks (formatting, linting, type checking)
-black . && isort . && flake8 . && mypy .
 ```
 
 **Note: This is not production ready.**

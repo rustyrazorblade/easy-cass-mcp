@@ -8,8 +8,8 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from cassandra_connection import CassandraConnection
-from cassandra_service import CassandraService
+from ecm.cassandra_connection import CassandraConnection
+from ecm.cassandra_service import CassandraService
 
 
 class TestCassandraServiceUnit:

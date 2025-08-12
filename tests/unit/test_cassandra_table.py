@@ -7,8 +7,8 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from cassandra_table import CassandraTable
-from exceptions import CassandraMetadataError
+from ecm.cassandra_table import CassandraTable
+from ecm.exceptions import CassandraMetadataError
 
 
 class TestCassandraTable:

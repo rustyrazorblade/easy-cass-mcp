@@ -1,14 +1,17 @@
 import asyncio
 import logging
+import os
 
-from cassandra_connection import CassandraConnection
-from cassandra_service import CassandraService
-from config import CassandraConfig
-from mcp_server import create_mcp_server
+from ecm.cassandra_connection import CassandraConnection
+from ecm.cassandra_service import CassandraService
+from ecm.config import CassandraConfig
+from ecm.mcp_server import create_mcp_server
 
-# Configure logging
+# Configure logging with environment variable support
+log_level = os.getenv("LOG_LEVEL", "INFO").upper()
 logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=getattr(logging, log_level, logging.INFO),
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 

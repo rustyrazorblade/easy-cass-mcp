@@ -3,11 +3,11 @@ from typing import List, Optional
 
 from fastmcp import FastMCP
 
-from cassandra_service import CassandraService
-from cassandra_utility import CassandraUtility
-from compaction_analyzer import CompactionAnalyzer
-from configuration_analyzer import ConfigurationAnalyzer
-from constants import MCP_SERVER_NAME, VALID_SYSTEM_KEYSPACES
+from .cassandra_service import CassandraService
+from .cassandra_utility import CassandraUtility
+from .compaction_analyzer import CompactionAnalyzer
+from .configuration_analyzer import ConfigurationAnalyzer
+from .constants import MCP_SERVER_NAME, VALID_SYSTEM_KEYSPACES
 
 logger = logging.getLogger(__name__)
 

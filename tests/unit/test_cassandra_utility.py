@@ -7,8 +7,8 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from cassandra_utility import CassandraUtility
-from exceptions import CassandraVersionError
+from ecm.cassandra_utility import CassandraUtility
+from ecm.exceptions import CassandraVersionError
 
 
 class TestCassandraUtility:
@@ -124,7 +124,7 @@ class TestCassandraUtility:
 
     def test_get_table(self, utility):
         """Test CassandraTable object creation."""
-        from cassandra_table import CassandraTable
+        from ecm.cassandra_table import CassandraTable
         
         table = utility.get_table("test_keyspace", "test_table")
         

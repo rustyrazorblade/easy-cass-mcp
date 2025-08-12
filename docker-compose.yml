@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  # Cassandra MCP Server
+  mcp-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cassandra-mcp-server
+    ports:
+      - "8000:8000"  # MCP server port
+    environment:
+      - CASSANDRA_HOST=${CASSANDRA_HOST:-cassandra}
+      - CASSANDRA_PORT=${CASSANDRA_PORT:-9042}
+      - CASSANDRA_DATACENTER=${CASSANDRA_DATACENTER:-datacenter1}
+      - CASSANDRA_USERNAME=${CASSANDRA_USERNAME:-}
+      - CASSANDRA_PASSWORD=${CASSANDRA_PASSWORD:-}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    depends_on:
+      cassandra:
+        condition: service_healthy
+    networks:
+      - cassandra-net
+    restart: unless-stopped
+
+  # Cassandra Database (for local development)
+  cassandra:
+    image: cassandra:4.1
+    container_name: cassandra-dev
+    ports:
+      - "9042:9042"  # CQL port
+      - "7000:7000"  # Cluster communication
+      - "7001:7001"  # Cluster communication (SSL)
+      - "9160:9160"  # Thrift port (legacy)
+    environment:
+      - CASSANDRA_DC=datacenter1
+      - CASSANDRA_ENDPOINT_SNITCH=GossipingPropertyFileSnitch
+      - CASSANDRA_CLUSTER_NAME=TestCluster
+      - MAX_HEAP_SIZE=512M
+      - HEAP_NEWSIZE=100M
+    volumes:
+      - cassandra-data:/var/lib/cassandra
+    networks:
+      - cassandra-net
+    healthcheck:
+      test: ["CMD", "cqlsh", "-e", "describe keyspaces"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+networks:
+  cassandra-net:
+    driver: bridge
+
+volumes:
+  cassandra-data:
+    driver: local

@@ -2,9 +2,9 @@ import asyncio
 import logging
 from typing import Any, Dict, List, Optional
 
-from cassandra_connection import CassandraConnection
-from constants import MAX_CONCURRENT_QUERIES, MAX_DISPLAY_ROWS
-from exceptions import CassandraMetadataError, CassandraVersionError
+from .cassandra_connection import CassandraConnection
+from .constants import MAX_CONCURRENT_QUERIES, MAX_DISPLAY_ROWS
+from .exceptions import CassandraMetadataError, CassandraVersionError
 
 logger = logging.getLogger(__name__)
 

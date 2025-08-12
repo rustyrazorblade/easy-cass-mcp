@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from compaction_analyzer import CompactionAnalyzer
+from ecm.compaction_analyzer import CompactionAnalyzer
 
 
 class TestCompactionAnalyzer:

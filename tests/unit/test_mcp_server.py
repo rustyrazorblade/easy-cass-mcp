@@ -8,8 +8,8 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from cassandra_service import CassandraService
-from mcp_server import create_mcp_server
+from ecm.cassandra_service import CassandraService
+from ecm.mcp_server import create_mcp_server
 
 
 class TestMCPServer:
@@ -105,7 +105,7 @@ class TestMCPServer:
         )
 
         # Import the function directly from the module
-        from mcp_server import create_mcp_server
+        from ecm.mcp_server import create_mcp_server
 
         # Create the MCP server which registers the tools
         mcp = await create_mcp_server(mock_service)

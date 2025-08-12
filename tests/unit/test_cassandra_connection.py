@@ -9,8 +9,8 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
-from cassandra_connection import CassandraConnection
-from exceptions import CassandraConnectionError, CassandraQueryError
+from ecm.cassandra_connection import CassandraConnection
+from ecm.exceptions import CassandraConnectionError, CassandraQueryError
 
 
 class TestCassandraConnection:
@@ -55,7 +55,7 @@ class TestCassandraConnection:
         """Test connect when already connected."""
         connection._is_connected = True
         
-        with patch("cassandra_connection.asyncio.get_event_loop") as mock_get_loop:
+        with patch("ecm.cassandra_connection.asyncio.get_event_loop") as mock_get_loop:
             await connection.connect()
             # Should not attempt to connect again
             mock_get_loop.assert_not_called()
@@ -63,11 +63,11 @@ class TestCassandraConnection:
     @pytest.mark.asyncio
     async def test_connect_timeout(self, connection):
         """Test connection timeout handling."""
-        with patch("cassandra_connection.asyncio.get_event_loop") as mock_get_loop:
+        with patch("ecm.cassandra_connection.asyncio.get_event_loop") as mock_get_loop:
             mock_loop = Mock()
             mock_get_loop.return_value = mock_loop
             
-            with patch("cassandra_connection.asyncio.wait_for") as mock_wait_for:
+            with patch("ecm.cassandra_connection.asyncio.wait_for") as mock_wait_for:
                 mock_wait_for.side_effect = asyncio.TimeoutError()
                 
                 with pytest.raises(CassandraConnectionError) as exc_info:
@@ -97,7 +97,7 @@ class TestCassandraConnection:
         mock_response_future.add_errback = Mock()
         connection.session.execute_async.return_value = mock_response_future
         
-        with patch("cassandra_connection.asyncio.wait_for") as mock_wait_for:
+        with patch("ecm.cassandra_connection.asyncio.wait_for") as mock_wait_for:
             mock_wait_for.side_effect = asyncio.TimeoutError()
             
             with pytest.raises(CassandraQueryError) as exc_info:
@@ -111,7 +111,7 @@ class TestCassandraConnection:
         connection.session = Mock()
         mock_prepare = Mock(side_effect=Exception("Prepare failed"))
         
-        with patch("cassandra_connection.asyncio.get_event_loop") as mock_get_loop:
+        with patch("ecm.cassandra_connection.asyncio.get_event_loop") as mock_get_loop:
             mock_loop = Mock()
             mock_get_loop.return_value = mock_loop
             mock_loop.run_in_executor = AsyncMock(side_effect=Exception("Prepare failed"))
@@ -190,7 +190,7 @@ class TestCassandraConnection:
         connection.session.execute_async.return_value = mock_response_future
         
         # Mock wait_for to return the result immediately
-        with patch("cassandra_connection.asyncio.wait_for") as mock_wait_for:
+        with patch("ecm.cassandra_connection.asyncio.wait_for") as mock_wait_for:
             mock_wait_for.return_value = mock_result
             
             result = await connection.execute_on_host("192.168.1.1", "SELECT * FROM test")
@@ -221,7 +221,7 @@ class TestCassandraConnection:
         connection.session.execute_async.return_value = mock_response_future
         
         # Mock wait_for to return the result immediately
-        with patch("cassandra_connection.asyncio.wait_for") as mock_wait_for:
+        with patch("ecm.cassandra_connection.asyncio.wait_for") as mock_wait_for:
             mock_wait_for.return_value = mock_result
             
             result = await connection.execute_on_host("192.168.1.1", "SELECT * FROM test")

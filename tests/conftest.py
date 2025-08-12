@@ -4,9 +4,9 @@ import os
 import pytest
 import pytest_asyncio
 
-from cassandra_connection import CassandraConnection
-from cassandra_service import CassandraService
-from config import CassandraConfig
+from ecm.cassandra_connection import CassandraConnection
+from ecm.cassandra_service import CassandraService
+from ecm.config import CassandraConfig
 
 
 @pytest.fixture(scope="session")

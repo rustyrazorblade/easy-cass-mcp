@@ -1,8 +1,8 @@
 import logging
 from typing import Any, Dict, List, Tuple
 
-from cassandra_table import CassandraTable
-from constants import STCS_CLASS, UCS_CLASS, UCS_MIN_VERSION
+from .cassandra_table import CassandraTable
+from .constants import STCS_CLASS, UCS_CLASS, UCS_MIN_VERSION
 
 logger = logging.getLogger(__name__)
 

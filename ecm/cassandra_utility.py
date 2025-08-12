@@ -3,8 +3,8 @@ from typing import Optional, Tuple
 
 from cassandra.cluster import Session
 
-from cassandra_table import CassandraTable
-from exceptions import CassandraVersionError
+from .cassandra_table import CassandraTable
+from .exceptions import CassandraVersionError
 
 logger = logging.getLogger(__name__)
 
