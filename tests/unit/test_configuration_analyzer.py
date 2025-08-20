@@ -8,6 +8,7 @@ from unittest.mock import Mock
 
 import pytest
 
+from ecm.cassandra_settings import CassandraSettings
 from ecm.cassandra_version import CassandraVersion
 from ecm.configuration_analyzer import ConfigurationAnalyzer
 
@@ -24,36 +25,37 @@ class TestConfigurationAnalyzer:
 
     @pytest.mark.asyncio
     async def test_analyzer_creation(self):
-        """Test ConfigurationAnalyzer creation with session and version."""
+        """Test ConfigurationAnalyzer creation with CassandraSettings."""
         mock_session = Mock()
         version = CassandraVersion(5, 0, 0)
+        settings = CassandraSettings(mock_session, version)
         
-        analyzer = ConfigurationAnalyzer(mock_session, version)
+        analyzer = ConfigurationAnalyzer(settings)
         
-        assert analyzer.session == mock_session
-        assert analyzer.cassandra_version == version
-        assert analyzer.major_version == 5
-        assert analyzer.minor_version == 0
-        assert analyzer.patch_version == 0
+        assert analyzer.settings == settings
+        assert analyzer.settings.session == mock_session
+        assert analyzer.settings.version == version
 
     @pytest.mark.asyncio
     async def test_analyzer_creation_cassandra4(self):
         """Test ConfigurationAnalyzer with Cassandra 4.x version."""
         mock_session = Mock()
         version = CassandraVersion(4, 1, 3)
+        settings = CassandraSettings(mock_session, version)
         
-        analyzer = ConfigurationAnalyzer(mock_session, version)
+        analyzer = ConfigurationAnalyzer(settings)
         
-        assert analyzer.cassandra_version == version
-        assert analyzer.major_version == 4
-        assert analyzer.minor_version == 1
-        assert analyzer.patch_version == 3
+        assert analyzer.settings.version == version
+        assert analyzer.settings.version.major == 4
+        assert analyzer.settings.version.minor == 1
+        assert analyzer.settings.version.patch == 3
 
     @pytest.mark.asyncio
     async def test_analyze_empty(self):
         """Test analyze returns empty list initially."""
         mock_session = Mock()
-        analyzer = ConfigurationAnalyzer(mock_session, CassandraVersion(5, 0, 0))
+        settings = CassandraSettings(mock_session, CassandraVersion(5, 0, 0))
+        analyzer = ConfigurationAnalyzer(settings)
         
         recommendations = await analyzer.analyze()
         
@@ -63,7 +65,8 @@ class TestConfigurationAnalyzer:
     def test_format_version_string(self):
         """Test version string formatting."""
         mock_session = Mock()
-        analyzer = ConfigurationAnalyzer(mock_session, CassandraVersion(5, 0, 2))
+        settings = CassandraSettings(mock_session, CassandraVersion(5, 0, 2))
+        analyzer = ConfigurationAnalyzer(settings)
         
         version_str = analyzer._format_version_string()
         
@@ -72,23 +75,25 @@ class TestConfigurationAnalyzer:
     def test_format_version_string_snapshot(self):
         """Test version string formatting for snapshot versions."""
         mock_session = Mock()
-        analyzer = ConfigurationAnalyzer(mock_session, CassandraVersion(5, 1, 0))
+        settings = CassandraSettings(mock_session, CassandraVersion(5, 1, 0))
+        analyzer = ConfigurationAnalyzer(settings)
         
         version_str = analyzer._format_version_string()
         
         assert version_str == "5.1.0"
 
     @pytest.mark.asyncio
-    async def test_analyze_preserves_session(self):
-        """Test that analyzer preserves session reference for future queries."""
+    async def test_analyze_preserves_settings(self):
+        """Test that analyzer preserves settings reference for future queries."""
         mock_session = Mock()
-        analyzer = ConfigurationAnalyzer(mock_session, CassandraVersion(4, 0, 0))
+        settings = CassandraSettings(mock_session, CassandraVersion(4, 0, 0))
+        analyzer = ConfigurationAnalyzer(settings)
         
         # Call analyze
         await analyzer.analyze()
         
-        # Session should still be available for future rule implementations
-        assert analyzer.session == mock_session
+        # Settings should still be available for future rule implementations
+        assert analyzer.settings == settings
 
     @pytest.mark.asyncio
     async def test_analyzer_with_different_versions(self):
@@ -105,10 +110,11 @@ class TestConfigurationAnalyzer:
         ]
         
         for version in versions:
-            analyzer = ConfigurationAnalyzer(mock_session, version)
-            assert analyzer.major_version == version.major
-            assert analyzer.minor_version == version.minor
-            assert analyzer.patch_version == version.patch
+            settings = CassandraSettings(mock_session, version)
+            analyzer = ConfigurationAnalyzer(settings)
+            assert analyzer.settings.version.major == version.major
+            assert analyzer.settings.version.minor == version.minor
+            assert analyzer.settings.version.patch == version.patch
             
             # Should not raise any errors
             recommendations = await analyzer.analyze()

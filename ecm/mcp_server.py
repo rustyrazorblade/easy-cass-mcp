@@ -4,6 +4,7 @@ from typing import List, Optional
 from fastmcp import FastMCP
 
 from .cassandra_service import CassandraService
+from .cassandra_settings import CassandraSettings
 from .cassandra_utility import CassandraUtility
 from .compaction_analyzer import CompactionAnalyzer
 from .configuration_analyzer import ConfigurationAnalyzer
@@ -235,16 +236,22 @@ async def create_mcp_server(service: CassandraService) -> FastMCP:
             # Get Cassandra version
             version = await utility.get_version()
             
-            # Create analyzer with session and version
-            config_analyzer = ConfigurationAnalyzer(
+            # Create settings instance
+            settings = CassandraSettings(
                 service.connection.session,
                 version
             )
+            
+            # Load settings from cluster
+            await settings.load_settings()
+            
+            # Create analyzer with settings
+            config_analyzer = ConfigurationAnalyzer(settings)
             recommendations = await config_analyzer.analyze()
             
             # Format output
             output = [f"=== Configuration Recommendations ==="]
-            output.append(f"Cassandra Version: {version}")
+            output.append(f"Cassandra Version: {settings.version}")
             output.append("")
             
             if not recommendations:

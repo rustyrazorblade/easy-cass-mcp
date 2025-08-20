@@ -7,9 +7,7 @@ based on Cassandra version and current settings.
 import logging
 from typing import Any, Dict, List
 
-from cassandra.cluster import Session
-
-from .cassandra_version import CassandraVersion
+from .cassandra_settings import CassandraSettings
 
 logger = logging.getLogger(__name__)
 
@@ -17,18 +15,13 @@ logger = logging.getLogger(__name__)
 class ConfigurationAnalyzer:
     """Analyzes cluster configuration and provides recommendations."""
 
-    def __init__(self, session: Session, cassandra_version: CassandraVersion) -> None:
+    def __init__(self, settings: CassandraSettings) -> None:
         """Initialize the configuration analyzer.
         
         Args:
-            session: Active Cassandra session for querying configuration
-            cassandra_version: CassandraVersion object with major, minor, patch attributes
+            settings: CassandraSettings instance with normalized cluster settings
         """
-        self.session = session
-        self.cassandra_version = cassandra_version
-        self.major_version = cassandra_version.major
-        self.minor_version = cassandra_version.minor
-        self.patch_version = cassandra_version.patch
+        self.settings = settings
 
     async def analyze(self) -> List[Dict[str, Any]]:
         """Analyze configuration and return recommendations.
@@ -48,20 +41,17 @@ class ConfigurationAnalyzer:
         recommendations = []
         
         # Placeholder for future rules
-        # Can query system tables using self.session when rules are added
-        # For example:
-        # - Query system_views.settings for configuration (Cassandra 4.0+)
-        # - Query system_views.system_properties for JVM settings  
-        # - Query system.local for node-specific info
+        # Settings are available through self.settings
+        # Version is available through self.settings.version
         # 
         # Example structure for future rules:
-        # if self.cassandra_version >= (5, 0, 0):
+        # if self.settings.version.major >= 5:
         #     recommendations.extend(self._check_cassandra5_config())
-        # if self.cassandra_version >= (4, 0, 0):
+        # if self.settings.version.major >= 4:
         #     recommendations.extend(self._check_cassandra4_config())
         
         return recommendations
 
     def _format_version_string(self) -> str:
         """Format the version as a string for display."""
-        return f"{self.major_version}.{self.minor_version}.{self.patch_version}"
+        return str(self.settings.version)
