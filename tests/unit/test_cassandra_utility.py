@@ -8,6 +8,7 @@ from unittest.mock import Mock, patch
 import pytest
 
 from ecm.cassandra_utility import CassandraUtility
+from ecm.cassandra_version import CassandraVersion
 from ecm.exceptions import CassandraVersionError
 
 
@@ -23,10 +24,10 @@ class TestCassandraUtility:
     @pytest.mark.asyncio
     async def test_get_version_from_cache(self, utility):
         """Test version retrieval from cache."""
-        utility._version_cache = (4, 0, 11)
+        utility._version_cache = CassandraVersion(4, 0, 11)
         
         version = await utility.get_version()
-        assert version == (4, 0, 11)
+        assert version == CassandraVersion(4, 0, 11)
         
         # Should not query database
         utility.session.execute.assert_not_called()
@@ -46,8 +47,8 @@ class TestCassandraUtility:
         utility.session.cluster.control_connection = mock_control_conn
         
         version = await utility.get_version()
-        assert version == (4, 0, 11)
-        assert utility._version_cache == (4, 0, 11)
+        assert version == CassandraVersion(4, 0, 11)
+        assert utility._version_cache == CassandraVersion(4, 0, 11)
 
     @pytest.mark.asyncio
     async def test_get_version_from_system_local(self, utility):
@@ -65,8 +66,8 @@ class TestCassandraUtility:
         utility.session.execute.return_value = mock_result
         
         version = await utility.get_version()
-        assert version == (5, 0, 0)
-        assert utility._version_cache == (5, 0, 0)
+        assert version == CassandraVersion(5, 0, 0)
+        assert utility._version_cache == CassandraVersion(5, 0, 0)
         
         # Should have queried system.local
         utility.session.execute.assert_called_once_with(
@@ -97,19 +98,19 @@ class TestCassandraUtility:
 
     def test_parse_version_standard(self, utility):
         """Test parsing standard version strings."""
-        assert utility._parse_version("4.0.11") == (4, 0, 11)
-        assert utility._parse_version("5.0.0") == (5, 0, 0)
-        assert utility._parse_version("3.11.16") == (3, 11, 16)
+        assert utility._parse_version("4.0.11") == CassandraVersion(4, 0, 11)
+        assert utility._parse_version("5.0.0") == CassandraVersion(5, 0, 0)
+        assert utility._parse_version("3.11.16") == CassandraVersion(3, 11, 16)
 
     def test_parse_version_snapshot(self, utility):
         """Test parsing snapshot version strings."""
-        assert utility._parse_version("5.0.0-SNAPSHOT") == (5, 0, 0)
-        assert utility._parse_version("4.1.0-beta1") == (4, 1, 0)
+        assert utility._parse_version("5.0.0-SNAPSHOT") == CassandraVersion(5, 0, 0)
+        assert utility._parse_version("4.1.0-beta1") == CassandraVersion(4, 1, 0)
 
     def test_parse_version_short(self, utility):
         """Test parsing short version strings."""
-        assert utility._parse_version("4.0") == (4, 0, 0)
-        assert utility._parse_version("5") == (5, 0, 0)
+        assert utility._parse_version("4.0") == CassandraVersion(4, 0, 0)
+        assert utility._parse_version("5") == CassandraVersion(5, 0, 0)
 
     def test_parse_version_invalid(self, utility):
         """Test error handling for invalid version strings."""

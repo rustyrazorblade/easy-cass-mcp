@@ -4,6 +4,8 @@ This module centralizes all magic numbers, strings, and configuration
 constants for better maintainability and consistency.
 """
 
+from .cassandra_version import CassandraVersion
+
 # Connection defaults
 DEFAULT_PORT = 9042
 DEFAULT_DATACENTER = "datacenter1"
@@ -32,7 +34,7 @@ VERSION_CACHE_TTL = 3600  # 1 hour in seconds
 # Compaction strategies
 STCS_CLASS = "SizeTieredCompactionStrategy"
 UCS_CLASS = "UnifiedCompactionStrategy"
-UCS_MIN_VERSION = (5, 0, 0)
+UCS_MIN_VERSION = CassandraVersion(5, 0, 0)
 
 # MCP Server
 MCP_SERVER_NAME = "Cassandra MCP Server"

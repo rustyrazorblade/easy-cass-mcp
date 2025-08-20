@@ -5,9 +5,11 @@ based on Cassandra version and current settings.
 """
 
 import logging
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List
 
 from cassandra.cluster import Session
+
+from .cassandra_version import CassandraVersion
 
 logger = logging.getLogger(__name__)
 
@@ -15,18 +17,18 @@ logger = logging.getLogger(__name__)
 class ConfigurationAnalyzer:
     """Analyzes cluster configuration and provides recommendations."""
 
-    def __init__(self, session: Session, cassandra_version: Tuple[int, int, int]) -> None:
+    def __init__(self, session: Session, cassandra_version: CassandraVersion) -> None:
         """Initialize the configuration analyzer.
         
         Args:
             session: Active Cassandra session for querying configuration
-            cassandra_version: Tuple of (major, minor, patch) version numbers
+            cassandra_version: CassandraVersion object with major, minor, patch attributes
         """
         self.session = session
         self.cassandra_version = cassandra_version
-        self.major_version = cassandra_version[0]
-        self.minor_version = cassandra_version[1]
-        self.patch_version = cassandra_version[2]
+        self.major_version = cassandra_version.major
+        self.minor_version = cassandra_version.minor
+        self.patch_version = cassandra_version.patch
 
     async def analyze(self) -> List[Dict[str, Any]]:
         """Analyze configuration and return recommendations.

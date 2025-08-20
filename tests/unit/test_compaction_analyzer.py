@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
+from ecm.cassandra_version import CassandraVersion
 from ecm.compaction_analyzer import CompactionAnalyzer
 
 
@@ -22,7 +23,7 @@ class TestCompactionAnalyzer:
     async def test_analyze_stcs_to_ucs_recommendation(self, mock_table):
         """Test recommendation to switch from STCS to UCS in Cassandra 5+."""
         # Mock Cassandra 5.0
-        analyzer = CompactionAnalyzer(mock_table, (5, 0, 1))
+        analyzer = CompactionAnalyzer(mock_table, CassandraVersion(5, 0, 1))
         
         # Mock table with STCS
         mock_table.get_compaction_strategy = AsyncMock(
@@ -43,7 +44,7 @@ class TestCompactionAnalyzer:
     @pytest.mark.asyncio
     async def test_analyze_no_recommendation_for_ucs(self, mock_table):
         """Test no recommendation when already using UCS."""
-        analyzer = CompactionAnalyzer(mock_table, (5, 0, 0))
+        analyzer = CompactionAnalyzer(mock_table, CassandraVersion(5, 0, 0))
         
         # Mock table with UCS
         mock_table.get_compaction_strategy = AsyncMock(
@@ -60,7 +61,7 @@ class TestCompactionAnalyzer:
     @pytest.mark.asyncio
     async def test_analyze_no_recommendation_for_lcs(self, mock_table):
         """Test no recommendation for LeveledCompactionStrategy."""
-        analyzer = CompactionAnalyzer(mock_table, (5, 0, 0))
+        analyzer = CompactionAnalyzer(mock_table, CassandraVersion(5, 0, 0))
         
         # Mock table with LCS
         mock_table.get_compaction_strategy = AsyncMock(
@@ -77,7 +78,7 @@ class TestCompactionAnalyzer:
     @pytest.mark.asyncio
     async def test_analyze_no_recommendation_for_cassandra_4(self, mock_table):
         """Test no UCS recommendation for Cassandra 4.x."""
-        analyzer = CompactionAnalyzer(mock_table, (4, 0, 11))
+        analyzer = CompactionAnalyzer(mock_table, CassandraVersion(4, 0, 11))
         
         # Mock table with STCS
         mock_table.get_compaction_strategy = AsyncMock(
@@ -94,7 +95,7 @@ class TestCompactionAnalyzer:
 
     def test_should_recommend_ucs_with_stcs_and_cassandra_5(self, mock_table):
         """Test UCS recommendation logic for STCS in Cassandra 5+."""
-        analyzer = CompactionAnalyzer(mock_table, (5, 0, 0))
+        analyzer = CompactionAnalyzer(mock_table, CassandraVersion(5, 0, 0))
         
         assert analyzer._should_recommend_ucs("SizeTieredCompactionStrategy")
         assert analyzer._should_recommend_ucs(
@@ -103,7 +104,7 @@ class TestCompactionAnalyzer:
 
     def test_should_not_recommend_ucs_for_other_strategies(self, mock_table):
         """Test no UCS recommendation for non-STCS strategies."""
-        analyzer = CompactionAnalyzer(mock_table, (5, 0, 0))
+        analyzer = CompactionAnalyzer(mock_table, CassandraVersion(5, 0, 0))
         
         assert not analyzer._should_recommend_ucs("LeveledCompactionStrategy")
         assert not analyzer._should_recommend_ucs("TimeWindowCompactionStrategy")
@@ -111,16 +112,16 @@ class TestCompactionAnalyzer:
 
     def test_should_not_recommend_ucs_for_old_cassandra(self, mock_table):
         """Test no UCS recommendation for older Cassandra versions."""
-        analyzer = CompactionAnalyzer(mock_table, (4, 1, 5))
+        analyzer = CompactionAnalyzer(mock_table, CassandraVersion(4, 1, 5))
         
         assert not analyzer._should_recommend_ucs("SizeTieredCompactionStrategy")
         
-        analyzer = CompactionAnalyzer(mock_table, (3, 11, 16))
+        analyzer = CompactionAnalyzer(mock_table, CassandraVersion(3, 11, 16))
         assert not analyzer._should_recommend_ucs("SizeTieredCompactionStrategy")
 
     def test_create_ucs_recommendation(self, mock_table):
         """Test UCS recommendation creation."""
-        analyzer = CompactionAnalyzer(mock_table, (5, 0, 0))
+        analyzer = CompactionAnalyzer(mock_table, CassandraVersion(5, 0, 0))
         
         recommendation = analyzer._create_ucs_recommendation()
         

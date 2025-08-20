@@ -244,7 +244,7 @@ async def create_mcp_server(service: CassandraService) -> FastMCP:
             
             # Format output
             output = [f"=== Configuration Recommendations ==="]
-            output.append(f"Cassandra Version: {version[0]}.{version[1]}.{version[2]}")
+            output.append(f"Cassandra Version: {version}")
             output.append("")
             
             if not recommendations:

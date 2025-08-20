@@ -1,7 +1,8 @@
 import logging
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List
 
 from .cassandra_table import CassandraTable
+from .cassandra_version import CassandraVersion
 from .constants import STCS_CLASS, UCS_CLASS, UCS_MIN_VERSION
 
 logger = logging.getLogger(__name__)
@@ -11,11 +12,11 @@ class CompactionAnalyzer:
     """Analyzes table compaction strategies and provides optimization recommendations."""
 
     def __init__(
-        self, table: CassandraTable, cassandra_version: Tuple[int, int, int]
+        self, table: CassandraTable, cassandra_version: CassandraVersion
     ) -> None:
         self.table = table
         self.cassandra_version = cassandra_version
-        self.major_version = cassandra_version[0]
+        self.major_version = cassandra_version.major
 
     async def analyze(self) -> List[Dict[str, Any]]:
         """Analyze the table's compaction strategy and return optimization recommendations.

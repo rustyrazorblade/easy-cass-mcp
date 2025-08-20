@@ -8,6 +8,7 @@ from unittest.mock import Mock
 
 import pytest
 
+from ecm.cassandra_version import CassandraVersion
 from ecm.configuration_analyzer import ConfigurationAnalyzer
 
 
@@ -25,7 +26,7 @@ class TestConfigurationAnalyzer:
     async def test_analyzer_creation(self):
         """Test ConfigurationAnalyzer creation with session and version."""
         mock_session = Mock()
-        version = (5, 0, 0)
+        version = CassandraVersion(5, 0, 0)
         
         analyzer = ConfigurationAnalyzer(mock_session, version)
         
@@ -39,7 +40,7 @@ class TestConfigurationAnalyzer:
     async def test_analyzer_creation_cassandra4(self):
         """Test ConfigurationAnalyzer with Cassandra 4.x version."""
         mock_session = Mock()
-        version = (4, 1, 3)
+        version = CassandraVersion(4, 1, 3)
         
         analyzer = ConfigurationAnalyzer(mock_session, version)
         
@@ -52,7 +53,7 @@ class TestConfigurationAnalyzer:
     async def test_analyze_empty(self):
         """Test analyze returns empty list initially."""
         mock_session = Mock()
-        analyzer = ConfigurationAnalyzer(mock_session, (5, 0, 0))
+        analyzer = ConfigurationAnalyzer(mock_session, CassandraVersion(5, 0, 0))
         
         recommendations = await analyzer.analyze()
         
@@ -62,7 +63,7 @@ class TestConfigurationAnalyzer:
     def test_format_version_string(self):
         """Test version string formatting."""
         mock_session = Mock()
-        analyzer = ConfigurationAnalyzer(mock_session, (5, 0, 2))
+        analyzer = ConfigurationAnalyzer(mock_session, CassandraVersion(5, 0, 2))
         
         version_str = analyzer._format_version_string()
         
@@ -71,7 +72,7 @@ class TestConfigurationAnalyzer:
     def test_format_version_string_snapshot(self):
         """Test version string formatting for snapshot versions."""
         mock_session = Mock()
-        analyzer = ConfigurationAnalyzer(mock_session, (5, 1, 0))
+        analyzer = ConfigurationAnalyzer(mock_session, CassandraVersion(5, 1, 0))
         
         version_str = analyzer._format_version_string()
         
@@ -81,7 +82,7 @@ class TestConfigurationAnalyzer:
     async def test_analyze_preserves_session(self):
         """Test that analyzer preserves session reference for future queries."""
         mock_session = Mock()
-        analyzer = ConfigurationAnalyzer(mock_session, (4, 0, 0))
+        analyzer = ConfigurationAnalyzer(mock_session, CassandraVersion(4, 0, 0))
         
         # Call analyze
         await analyzer.analyze()
@@ -96,18 +97,18 @@ class TestConfigurationAnalyzer:
         
         # Test various version formats
         versions = [
-            (3, 11, 15),
-            (4, 0, 0),
-            (4, 1, 0),
-            (5, 0, 0),
-            (5, 0, 1),
+            CassandraVersion(3, 11, 15),
+            CassandraVersion(4, 0, 0),
+            CassandraVersion(4, 1, 0),
+            CassandraVersion(5, 0, 0),
+            CassandraVersion(5, 0, 1),
         ]
         
         for version in versions:
             analyzer = ConfigurationAnalyzer(mock_session, version)
-            assert analyzer.major_version == version[0]
-            assert analyzer.minor_version == version[1]
-            assert analyzer.patch_version == version[2]
+            assert analyzer.major_version == version.major
+            assert analyzer.minor_version == version.minor
+            assert analyzer.patch_version == version.patch
             
             # Should not raise any errors
             recommendations = await analyzer.analyze()
