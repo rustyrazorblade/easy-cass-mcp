@@ -192,7 +192,7 @@ async def create_mcp_server(service: CassandraService) -> FastMCP:
 
             output = [f"=== Optimization Analysis for {keyspace}.{table} ==="]
             output.append(
-                f"Detected Cassandra version: {version[0]}.{version[1]}.{version[2]}"
+                f"Detected Cassandra version: {version.major}.{version.minor}.{version.patch}"
             )
             output.append("")
 

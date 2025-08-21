@@ -104,7 +104,7 @@ The easiest way to install and configure the MCP proxy for Claude Desktop is:
 
 2. In another terminal, install the proxy to Claude Desktop:
    ```bash
-   fastmcp install claude-desktop proxy.py:proxy
+   fastmcp install claude-desktop ecm/proxy.py:proxy
    ```
 
 This command automatically configures Claude Desktop to use the Cassandra MCP proxy.

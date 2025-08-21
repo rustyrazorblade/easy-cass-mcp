@@ -21,6 +21,21 @@ This project uses `uv` for Python package management:
 - `python main.py` - Run the MCP server
 - `uv run python main.py` - Run using uv's Python environment
 
+### Installing for Claude Desktop
+The MCP server can be installed for use with Claude Desktop using FastMCP:
+
+1. **Start the MCP server** (runs on port 8000):
+   ```bash
+   uv run python main.py
+   ```
+
+2. **Install the proxy for Claude Desktop** (in another terminal):
+   ```bash
+   fastmcp install claude-desktop ecm/proxy.py:proxy
+   ```
+
+The proxy (`ecm/proxy.py`) connects Claude Desktop to the HTTP server running on port 8000. Both the server and proxy need to be running for Claude Desktop integration to work.
+
 ### Development Tools
 - `black .` - Format code using Black
 - `isort .` - Sort imports
