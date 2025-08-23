@@ -223,7 +223,7 @@ version: '3.8'
 
 services:
   mcp-server:
-    image: cassandra-mcp-server:1.0.0
+    image: easy-cass-mcp:0.0.1
     deploy:
       resources:
         limits:

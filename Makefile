@@ -3,7 +3,7 @@
 
 # Configuration
 DOCKER_REGISTRY ?= docker.io
-IMAGE_NAME ?= rustyrazorblade/cassandra-mcp-server
+IMAGE_NAME ?= rustyrazorblade/easy-cass-mcp
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 FULL_IMAGE_NAME = $(if $(DOCKER_REGISTRY),$(DOCKER_REGISTRY)/,)$(IMAGE_NAME)
 

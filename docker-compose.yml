@@ -6,7 +6,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: cassandra-mcp-server
+    container_name: easy-cass-mcp
     ports:
       - "8000:8000"  # MCP server port
     environment:

@@ -1,6 +1,6 @@
 # Publishing to Docker Hub
 
-This guide explains how to publish the Cassandra MCP server to Docker Hub.
+This guide explains how to publish the Easy-Cass MCP server to Docker Hub.
 
 ## Prerequisites
 
@@ -21,22 +21,22 @@ The Makefile makes this easy. Replace `yourusername` with your Docker Hub userna
 
 ```bash
 # Build the image with proper naming for Docker Hub
-make docker-build DOCKER_REGISTRY=docker.io IMAGE_NAME=yourusername/cassandra-mcp-server
+make docker-build DOCKER_REGISTRY=docker.io IMAGE_NAME=yourusername/easy-cass-mcp
 
 # Or manually:
-docker build -t yourusername/cassandra-mcp-server:latest .
-docker tag yourusername/cassandra-mcp-server:latest yourusername/cassandra-mcp-server:0.1.0
+docker build -t yourusername/easy-cass-mcp:latest .
+docker tag yourusername/easy-cass-mcp:latest yourusername/easy-cass-mcp:0.1.0
 ```
 
 ## Step 3: Push to Docker Hub
 
 ```bash
 # Using Makefile (recommended)
-make docker-push DOCKER_REGISTRY=docker.io IMAGE_NAME=yourusername/cassandra-mcp-server
+make docker-push DOCKER_REGISTRY=docker.io IMAGE_NAME=yourusername/easy-cass-mcp
 
 # Or manually:
-docker push yourusername/cassandra-mcp-server:latest
-docker push yourusername/cassandra-mcp-server:0.1.0
+docker push yourusername/easy-cass-mcp:latest
+docker push yourusername/easy-cass-mcp:0.1.0
 ```
 
 ## Step 4: Create Release with Version Tag
@@ -47,13 +47,13 @@ make release-minor  # Creates v0.2.0
 git push --tags     # Push tag to GitHub
 
 # Build and push versioned image
-make release DOCKER_REGISTRY=docker.io IMAGE_NAME=yourusername/cassandra-mcp-server
-make docker-push DOCKER_REGISTRY=docker.io IMAGE_NAME=yourusername/cassandra-mcp-server
+make release DOCKER_REGISTRY=docker.io IMAGE_NAME=yourusername/easy-cass-mcp
+make docker-push DOCKER_REGISTRY=docker.io IMAGE_NAME=yourusername/easy-cass-mcp
 ```
 
 ## Complete Workflow Example
 
-Here's the complete workflow for publishing to `rustyrazorblade/cassandra-mcp-server`:
+Here's the complete workflow for publishing to `rustyrazorblade/easy-cass-mcp`:
 
 ```bash
 # 1. Login to Docker Hub
@@ -67,13 +67,13 @@ git push --tags
 make check  # Run all tests and linting
 
 # 4. Build Docker image
-make docker-build DOCKER_REGISTRY=docker.io IMAGE_NAME=rustyrazorblade/cassandra-mcp-server
+make docker-build DOCKER_REGISTRY=docker.io IMAGE_NAME=rustyrazorblade/easy-cass-mcp
 
 # 5. Test locally
-docker run -p 8000:8000 rustyrazorblade/cassandra-mcp-server:latest
+docker run -p 8000:8000 rustyrazorblade/easy-cass-mcp:latest
 
 # 6. Push to Docker Hub
-make docker-push DOCKER_REGISTRY=docker.io IMAGE_NAME=rustyrazorblade/cassandra-mcp-server
+make docker-push DOCKER_REGISTRY=docker.io IMAGE_NAME=rustyrazorblade/easy-cass-mcp
 ```
 
 ## Automated Publishing with GitHub Actions
@@ -108,7 +108,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: rustyrazorblade/cassandra-mcp-server
+          images: rustyrazorblade/easy-cass-mcp
           tags: |
             type=ref,event=tag
             type=semver,pattern={{version}}
@@ -139,10 +139,10 @@ To use GitHub Actions:
 ## Docker Hub Repository Setup
 
 1. Go to https://hub.docker.com/repository/create
-2. Create repository: `cassandra-mcp-server`
+2. Create repository: `easy-cass-mcp`
 3. Add description:
    ```
-   Cassandra MCP Server - Model Context Protocol server for Apache Cassandra
+   Easy-Cass MCP - Model Context Protocol server for Apache Cassandra
    
    A streamable MCP server that leverages virtual tables to interact with Apache Cassandra clusters.
    ```
@@ -159,17 +159,17 @@ Once published, users can run your image:
 # Pull and run latest version
 docker run -p 8000:8000 \
   -e CASSANDRA_HOST=cassandra.example.com \
-  yourusername/cassandra-mcp-server:latest
+  yourusername/easy-cass-mcp:latest
 
 # Use specific version
 docker run -p 8000:8000 \
   -e CASSANDRA_HOST=cassandra.example.com \
-  yourusername/cassandra-mcp-server:0.1.0
+  yourusername/easy-cass-mcp:0.1.0
 
 # With docker-compose
 services:
   mcp-server:
-    image: yourusername/cassandra-mcp-server:latest
+    image: yourusername/easy-cass-mcp:latest
     environment:
       - CASSANDRA_HOST=cassandra
 ```
@@ -185,7 +185,7 @@ docker buildx create --name multiarch --use
 # Build and push multi-arch image
 docker buildx build \
   --platform linux/amd64,linux/arm64 \
-  -t yourusername/cassandra-mcp-server:latest \
+  -t yourusername/easy-cass-mcp:latest \
   --push .
 ```
 
@@ -199,12 +199,12 @@ docker buildx build \
 6. **Testing**: Test the image locally before pushing
 7. **Scanning**: Use `docker scout` to scan for vulnerabilities:
    ```bash
-   docker scout cves yourusername/cassandra-mcp-server:latest
+   docker scout cves yourusername/easy-cass-mcp:latest
    ```
 
 ## Quick Commands (Makefile Configured)
 
-Since the Makefile is already configured with `rustyrazorblade/cassandra-mcp-server`, you can simply use:
+Since the Makefile is already configured with `rustyrazorblade/easy-cass-mcp`, you can simply use:
 
 ```bash
 # Build with default settings
