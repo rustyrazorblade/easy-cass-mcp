@@ -9,6 +9,7 @@ from .cassandra_utility import CassandraUtility
 from .compaction_analyzer import CompactionAnalyzer
 from .configuration_analyzer import ConfigurationAnalyzer
 from .constants import MCP_SERVER_NAME, VALID_SYSTEM_KEYSPACES
+from .thread_pool_stats import ThreadPoolStats
 
 logger = logging.getLogger(__name__)
 
@@ -197,14 +198,25 @@ async def create_mcp_server(service: CassandraService) -> FastMCP:
             output.append("")
 
             for i, opt in enumerate(optimizations, 1):
+                # Use type if present, otherwise use category value
+                opt_type = opt.type if opt.type else opt.category.value
                 output.append(
-                    f"{i}. {opt['type'].replace('_', ' ').title()} Optimization"
+                    f"{i}. {opt_type.replace('_', ' ').title()} Optimization"
                 )
-                output.append(f"   Current: {opt['current']}")
-                output.append(f"   Recommendation: {opt['recommendation']}")
-                output.append(f"   Reason: {opt['reason']}")
-                if "reference" in opt:
-                    output.append(f"   Reference: {opt['reference']}")
+                
+                if opt.current:
+                    output.append(f"   Current: {opt.current}")
+                    
+                # Use 'suggested' if present, otherwise 'recommendation'
+                if opt.suggested:
+                    output.append(f"   Recommendation: {opt.suggested}")
+                else:
+                    output.append(f"   Recommendation: {opt.recommendation}")
+                    
+                output.append(f"   Reason: {opt.reason}")
+                
+                if opt.reference:
+                    output.append(f"   Reference: {opt.reference}")
                 output.append("")
 
             output.append(
@@ -245,8 +257,12 @@ async def create_mcp_server(service: CassandraService) -> FastMCP:
             # Load settings from cluster
             await settings.load_settings()
             
-            # Create analyzer with settings
-            config_analyzer = ConfigurationAnalyzer(settings)
+            # Create and load thread pool statistics
+            thread_pool_stats = ThreadPoolStats(service.connection.session)
+            await thread_pool_stats.load_stats()
+            
+            # Create analyzer with settings and thread pool stats
+            config_analyzer = ConfigurationAnalyzer(settings, thread_pool_stats)
             recommendations = await config_analyzer.analyze()
             
             # Format output
@@ -260,17 +276,16 @@ async def create_mcp_server(service: CassandraService) -> FastMCP:
             else:
                 # Format recommendations when they exist
                 for i, rec in enumerate(recommendations, 1):
-                    output.append(f"{i}. {rec.get('recommendation', 'Unknown')}")
-                    if 'category' in rec:
-                        output.append(f"   Category: {rec['category']}")
-                    if 'priority' in rec:
-                        output.append(f"   Priority: {rec['priority']}")
-                    if 'current' in rec:
-                        output.append(f"   Current: {rec['current']}")
-                    if 'suggested' in rec:
-                        output.append(f"   Suggested: {rec['suggested']}")
-                    if 'reason' in rec:
-                        output.append(f"   Reason: {rec['reason']}")
+                    output.append(f"{i}. {rec.recommendation}")
+                    output.append(f"   Category: {rec.category.value}")
+                    output.append(f"   Priority: {rec.priority.value}")
+                    if rec.current:
+                        output.append(f"   Current: {rec.current}")
+                    if rec.suggested:
+                        output.append(f"   Suggested: {rec.suggested}")
+                    output.append(f"   Reason: {rec.reason}")
+                    if rec.pool_name:
+                        output.append(f"   Thread Pool: {rec.pool_name}")
                     output.append("")
                     
             return "\n".join(output)

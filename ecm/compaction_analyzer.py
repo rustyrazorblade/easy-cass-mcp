@@ -1,9 +1,10 @@
 import logging
-from typing import Any, Dict, List
+from typing import List
 
 from .cassandra_table import CassandraTable
 from .cassandra_version import CassandraVersion
 from .constants import STCS_CLASS, UCS_CLASS, UCS_MIN_VERSION
+from .recommendation import Recommendation, RecommendationCategory, RecommendationPriority
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +19,7 @@ class CompactionAnalyzer:
         self.cassandra_version = cassandra_version
         self.major_version = cassandra_version.major
 
-    async def analyze(self) -> List[Dict[str, Any]]:
+    async def analyze(self) -> List[Recommendation]:
         """Analyze the table's compaction strategy and return optimization recommendations.
 
         Returns:
@@ -47,19 +48,22 @@ class CompactionAnalyzer:
             STCS_CLASS in compaction_class and self.cassandra_version >= UCS_MIN_VERSION
         )
 
-    def _create_ucs_recommendation(self) -> Dict[str, Any]:
+    def _create_ucs_recommendation(self) -> Recommendation:
         """Create a recommendation for switching to UCS."""
-        return {
-            "type": "compaction_strategy",
-            "current": f"{STCS_CLASS} (STCS)",
-            "recommendation": (f"{UCS_CLASS} (UCS) with scaling_parameters: T4"),
-            "reason": (
+        return Recommendation(
+            recommendation=f"Switch from {STCS_CLASS} (STCS) to {UCS_CLASS} (UCS) with scaling_parameters: T4",
+            category=RecommendationCategory.COMPACTION_STRATEGY,
+            priority=RecommendationPriority.MEDIUM,
+            reason=(
                 "UCS with T4 scaling parameters provides better "
                 "performance and more predictable latencies "
                 "compared to STCS in Cassandra 5.0+"
             ),
-            "reference": (
+            current=f"{STCS_CLASS} (STCS)",
+            suggested=f"{UCS_CLASS} (UCS) with scaling_parameters: T4",
+            reference=(
                 "https://rustyrazorblade.com/post/2025/"
                 "07-compaction-strategies-and-performance/"
             ),
-        }
+            type="compaction_strategy"
+        )

@@ -9,6 +9,7 @@ import pytest
 
 from ecm.cassandra_version import CassandraVersion
 from ecm.compaction_analyzer import CompactionAnalyzer
+from ecm.recommendation import Recommendation, RecommendationCategory, RecommendationPriority
 
 
 class TestCompactionAnalyzer:
@@ -36,10 +37,12 @@ class TestCompactionAnalyzer:
         recommendations = await analyzer.analyze()
         
         assert len(recommendations) == 1
-        assert recommendations[0]["type"] == "compaction_strategy"
-        assert "SizeTieredCompactionStrategy" in recommendations[0]["current"]
-        assert "UnifiedCompactionStrategy" in recommendations[0]["recommendation"]
-        assert "T4" in recommendations[0]["recommendation"]
+        rec = recommendations[0]
+        assert isinstance(rec, Recommendation)
+        assert rec.type == "compaction_strategy"
+        assert "SizeTieredCompactionStrategy" in rec.current
+        assert "UnifiedCompactionStrategy" in rec.suggested
+        assert "T4" in rec.suggested
 
     @pytest.mark.asyncio
     async def test_analyze_no_recommendation_for_ucs(self, mock_table):
@@ -125,9 +128,10 @@ class TestCompactionAnalyzer:
         
         recommendation = analyzer._create_ucs_recommendation()
         
-        assert recommendation["type"] == "compaction_strategy"
-        assert "SizeTieredCompactionStrategy" in recommendation["current"]
-        assert "UnifiedCompactionStrategy" in recommendation["recommendation"]
-        assert "T4" in recommendation["recommendation"]
-        assert "performance" in recommendation["reason"]
-        assert "https://rustyrazorblade.com" in recommendation["reference"]
+        assert isinstance(recommendation, Recommendation)
+        assert recommendation.type == "compaction_strategy"
+        assert "SizeTieredCompactionStrategy" in recommendation.current
+        assert "UnifiedCompactionStrategy" in recommendation.suggested
+        assert "T4" in recommendation.suggested
+        assert "performance" in recommendation.reason
+        assert "https://rustyrazorblade.com" in recommendation.reference
