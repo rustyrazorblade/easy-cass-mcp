@@ -53,20 +53,41 @@ run: ## Run the MCP server locally
 	$(UV) run $(PYTHON) main.py
 
 .PHONY: docker-build
-docker-build: ## Build Docker image
-	@echo "$(GREEN)Building Docker image: $(FULL_IMAGE_NAME):$(VERSION)$(NC)"
+docker-build: ## Build Docker image (multi-architecture: amd64, arm64)
+	@echo "$(GREEN)Building multi-architecture Docker image: $(FULL_IMAGE_NAME):$(VERSION)$(NC)"
+	@echo "$(CYAN)Platforms: linux/amd64, linux/arm64$(NC)"
+	@# Ensure buildx is available and set up
+	@docker buildx inspect multiarch > /dev/null 2>&1 || docker buildx create --name multiarch --driver docker-container --use
+	@docker buildx use multiarch
+	@# Build for both architectures but don't push yet
+	@echo "$(CYAN)Note: Multi-arch images cannot be loaded locally. Use 'make docker-build-local' for local testing.$(NC)"
+	@echo "$(CYAN)This will build but not load the images. Use 'make docker-push' to build and push.$(NC)"
+	docker buildx build --platform linux/amd64,linux/arm64 \
+		-t $(FULL_IMAGE_NAME):$(VERSION) \
+		-t $(FULL_IMAGE_NAME):latest .
+
+.PHONY: docker-build-local
+docker-build-local: ## Build Docker image for local architecture only (faster)
+	@echo "$(GREEN)Building Docker image for local architecture: $(FULL_IMAGE_NAME):$(VERSION)$(NC)"
 	$(DOCKER) build -t $(FULL_IMAGE_NAME):$(VERSION) -t $(FULL_IMAGE_NAME):latest .
 
 .PHONY: docker-push
-docker-push: ## Push Docker image to registry
+docker-push: ## Push multi-architecture Docker image to registry
 	@if [ -z "$(DOCKER_REGISTRY)" ]; then \
 		echo "$(RED)Error: DOCKER_REGISTRY is not set$(NC)"; \
 		echo "Usage: make docker-push DOCKER_REGISTRY=your-registry.com"; \
 		exit 1; \
 	fi
-	@echo "$(GREEN)Pushing Docker image to $(DOCKER_REGISTRY)...$(NC)"
-	$(DOCKER) push $(FULL_IMAGE_NAME):$(VERSION)
-	$(DOCKER) push $(FULL_IMAGE_NAME):latest
+	@echo "$(GREEN)Building and pushing multi-architecture Docker image to $(DOCKER_REGISTRY)...$(NC)"
+	@echo "$(CYAN)Platforms: linux/amd64, linux/arm64$(NC)"
+	@# Ensure buildx is available and set up
+	@docker buildx inspect multiarch > /dev/null 2>&1 || docker buildx create --name multiarch --driver docker-container --use
+	@docker buildx use multiarch
+	@# Build and push in one step for multi-arch support
+	docker buildx build --platform linux/amd64,linux/arm64 \
+		-t $(FULL_IMAGE_NAME):$(VERSION) \
+		-t $(FULL_IMAGE_NAME):latest \
+		--push .
 
 .PHONY: version
 version: ## Show current version

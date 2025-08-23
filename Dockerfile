@@ -20,6 +20,7 @@ RUN uv sync --frozen --no-dev
 
 # Copy application code
 COPY *.py ./
+COPY ecm ./ecm/
 COPY tests ./tests/
 
 # Create non-root user for security
