@@ -53,24 +53,42 @@ The MCP server can be configured using environment variables or a `.env` file. A
 2. Edit `.env` with your Cassandra cluster settings:
    ```bash
    # Cassandra connection settings
-   CASSANDRA_CONTACT_POINTS=["localhost"]  # List of Cassandra nodes
+   CASSANDRA_CONTACT_POINTS=localhost       # Comma-separated list: host1,host2,host3
+   # Or use CASSANDRA_HOST for single host (Docker-friendly):
+   # CASSANDRA_HOST=cassandra
    CASSANDRA_PORT=9042                     # Cassandra native port
    CASSANDRA_DATACENTER=datacenter1        # Your datacenter name
    CASSANDRA_USERNAME=cassandra            # Optional: authentication username
    CASSANDRA_PASSWORD=cassandra            # Optional: authentication password
    CASSANDRA_PROTOCOL_VERSION=5            # Optional: protocol version (default: 5)
+   LOG_LEVEL=INFO                          # Optional: DEBUG, INFO, WARNING, ERROR
    ```
 
 ### Configuration Options
 
 | Environment Variable | Description | Default | Required |
 |---------------------|-------------|---------|----------|
-| `CASSANDRA_CONTACT_POINTS` | List of Cassandra contact points | `["localhost"]` | No |
+| `CASSANDRA_CONTACT_POINTS` | Comma-separated list of contact points | `localhost` | No |
+| `CASSANDRA_HOST` | Single host (alternative to CONTACT_POINTS) | None | No |
 | `CASSANDRA_PORT` | Cassandra native protocol port | `9042` | No |
 | `CASSANDRA_DATACENTER` | Cassandra datacenter name | `datacenter1` | No |
 | `CASSANDRA_USERNAME` | Authentication username | None | No |
 | `CASSANDRA_PASSWORD` | Authentication password | None | No |
 | `CASSANDRA_PROTOCOL_VERSION` | Cassandra protocol version | `5` | No |
+| `LOG_LEVEL` | Logging level (DEBUG, INFO, WARNING, ERROR) | `INFO` | No |
+
+**Note**: Use either `CASSANDRA_CONTACT_POINTS` or `CASSANDRA_HOST`, not both. `CASSANDRA_HOST` is preferred for Docker environments.
+
+### Test Configuration
+
+Additional environment variables for testing:
+
+| Environment Variable | Description | Default | Required |
+|---------------------|-------------|---------|----------|
+| `CASSANDRA_TEST_KEYSPACE` | Keyspace for integration tests | `mcp_test` | No |
+| `CASSANDRA_TEST_CONTACT_POINTS` | Override contact points for tests | None | No |
+| `CASSANDRA_TEST_DATACENTER` | Override datacenter for tests | None | No |
+| `CLEANUP_TEST_DATA` | Clean up test data after tests | `false` | No |
 
 ## Running the Server
 
@@ -87,7 +105,7 @@ python main.py
 The server will:
 1. Load configuration from environment variables or `.env` file
 2. Connect to your Cassandra cluster
-3. Start the MCP server on HTTP transport (default port: 3000)
+3. Start the MCP server on HTTP transport (default port: 8000)
 
 ## Using with MCP Proxy
 
@@ -120,7 +138,7 @@ If you prefer manual configuration, add the following to your `claude_desktop_co
       "command": "uv",
       "args": ["run", "python", "/path/to/easy-cass-mcp/proxy.py"],
       "env": {
-        "CASSANDRA_CONTACT_POINTS": "[\"localhost\"]",
+        "CASSANDRA_HOST": "localhost",
         "CASSANDRA_PORT": "9042",
         "CASSANDRA_DATACENTER": "datacenter1"
       }
@@ -182,12 +200,15 @@ The Docker container supports the following environment variables:
 
 | Environment Variable | Description | Default |
 |---------------------|-------------|---------|
-| `CASSANDRA_HOST` | Cassandra hostname or IP | `cassandra` |
+| `CASSANDRA_HOST` | Cassandra hostname or IP (preferred for Docker) | `cassandra` |
+| `CASSANDRA_CONTACT_POINTS` | Alternative: comma-separated list of hosts | None |
 | `CASSANDRA_PORT` | Cassandra native protocol port | `9042` |
 | `CASSANDRA_DATACENTER` | Cassandra datacenter name | `datacenter1` |
 | `CASSANDRA_USERNAME` | Authentication username | None |
 | `CASSANDRA_PASSWORD` | Authentication password | None |
 | `LOG_LEVEL` | Logging level (DEBUG, INFO, WARNING, ERROR) | `INFO` |
+
+**Note**: For Docker environments, `CASSANDRA_HOST` is preferred over `CASSANDRA_CONTACT_POINTS` for single-host connections.
 
 ### Docker Compose
 
@@ -200,9 +221,13 @@ To use with your own Cassandra cluster, modify the environment variables in `doc
 ```bash
 # .env file for docker-compose
 CASSANDRA_HOST=my-cassandra-cluster.example.com
+# Or for multiple hosts:
+# CASSANDRA_CONTACT_POINTS=host1.example.com,host2.example.com,host3.example.com
 CASSANDRA_PORT=9042
+CASSANDRA_DATACENTER=datacenter1
 CASSANDRA_USERNAME=myuser
 CASSANDRA_PASSWORD=mypassword
+LOG_LEVEL=INFO
 ```
 
 ### Production Deployment
